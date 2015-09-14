@@ -9,10 +9,67 @@ Ui = require 'ui'
 
 exports.render = ->
 
-	Dom.section !->
-		Dom.style Box: 'middle'
-		Ui.avatar Plugin.userAvatar(),
-			onTap: !-> Plugin.userInfo()
+	Dom.canvas !->
+		Dom.prop('width', 500)
+		Dom.prop('height', 500)
+		Dom.style
+			backgroundColor: '#fcc'
+			border: '1px solid grey'
+			width: '100%'
+			height: '60%'
+
+		distanceBetween = (point1, point2) -> Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2))
+		angleBetween = (point1, point2) -> Math.atan2(point2.x - point1.x, point2.y - point1.y)
+
+		ctx = Dom.getContext('2d')
+		ctx.lineJoin = ctx.lineCap = 'round'
+
+		isDrawing = false
+		lastPoint = {}
+		cvs = Dom.get()
+
+		getEventXY = (e) -> return {x: e.getTouchXY().x - cvs.getOffsetXY().x, y: e.getTouchXY().y - cvs.getOffsetXY().y}
+
+		start = (e) !->
+			isDrawing = true
+			lastPoint = getEventXY e
+
+		Dom.on 'mousedown', start
+		Dom.on 'touchstart', start
+
+		move = (e) !->
+			return if not isDrawing
+			currentPoint = getEventXY e
+			dist = distanceBetween lastPoint, currentPoint
+			angle = angleBetween lastPoint, currentPoint
+
+			for i in [0...dist] by 2
+				x = lastPoint.x + (Math.sin(angle) * i)
+				y = lastPoint.y + (Math.cos(angle) * i)
+				log '=== ' + x
+				x = Math.round((x/cvs.width())*500)
+				y = Math.round((y/cvs.height())*500)
+				log '-- ' + x
+				radgrad = ctx.createRadialGradient x, y, 2, x, y, 4
+
+				radgrad.addColorStop 0, '#000'
+				radgrad.addColorStop 0.5, 'rgba(0,0,0,0.5)'
+				radgrad.addColorStop 1, 'rgba(0,0,0,0)'
+
+				ctx.fillStyle = radgrad
+				ctx.fillRect(x-4, y-4, 8, 8)
+
+			lastPoint = currentPoint
+
+		Dom.on 'mousemove', move
+		Dom.on 'touchmove', move
+
+		end = !-> isDrawing = false
+		Dom.on 'mouseup', end
+		Dom.on 'touchend', end
+
+###	Ui.avatar Plugin.userAvatar(),
+		onTap: !-> Plugin.userInfo()
 
 		Dom.div !->
 			Dom.style Flex: true
@@ -170,3 +227,4 @@ exports.render = ->
 									map.setLatlong location
 
 
+###
