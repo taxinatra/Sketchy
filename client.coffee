@@ -7,7 +7,7 @@ Page = require 'page'
 Server = require 'server'
 Ui = require 'ui'
 
-BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}]
+BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}, {t:'XL', n:40}]
 COLOURS = ['white', 'darkslategrey', '#FF6961', '#FDFD96', '#AEC6CF', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
 
 exports.render = !->
