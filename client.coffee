@@ -7,12 +7,15 @@ Page = require 'page'
 Server = require 'server'
 Ui = require 'ui'
 
+BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}]
+COLOURS = ['white', 'darkslategrey', '#FF6961', '#FDFD96', '#AEC6CF', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
+
 exports.render = !->
 	CANVAS_WIDTH = CANVAS_HEIGHT = 500
 	LINE_SEGMENT = 5
 	lines = []
-	colour = Obs.create 'darkslategrey'
-	lineWidth = Obs.create 6
+	colour = Obs.create COLOURS[1]
+	lineWidth = Obs.create BRUSH_SIZES[1].n
 
 	cvs = false
 	Dom.canvas !->
@@ -29,11 +32,12 @@ exports.render = !->
 
 		cvs = Dom.get()
 
-		cvs.clear = !-> ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
+		cvs.clear = (replay) !->
+			if not replay? and startTime? then lines.push {clear: true, time: Date.now() - startTime}
+			ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
 
-		cvs.undo = !->
-			log '----undo'
-			lines.pop()
+		cvs.undo = (replay) !->
+			if not replay? and lines.length > 0 and not lines[lines.length-1].clear then lines.pop()
 			cvs.redraw()
 
 		drawLine = (line) !->
@@ -50,11 +54,14 @@ exports.render = !->
 			ctx.stroke()
 
 		cvs.redraw = !->
-			cvs.clear()
-			for line in lines
-				firstPt = line.points[0]
-				lastPt = line.points[line.points.length-1]
-				drawLine line
+			cvs.clear true
+			for obj in lines
+				if obj.clear #clear object
+					cvs.clear true
+				else
+					firstPt = obj.points[0]
+					lastPt = obj.points[obj.points.length-1]
+					drawLine obj
 
 		distanceBetween = (p1, p2) ->
 			dx = p2.x - p1.x
@@ -130,7 +137,7 @@ exports.render = !->
 
 	Dom.div !->
 		Dom.style border: '1px solid grey'
-		for c in ['white', 'darkslategrey', '#FF6961', '#FDFD96', '#AEC6CF', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953'] then do (c) !->
+		for c in COLOURS then do (c) !->
 			Dom.div !->
 				Dom.cls 'colour-block'
 				Dom.style backgroundColor: c
@@ -143,25 +150,27 @@ exports.render = !->
 		Dom.div !->
 			Dom.cls 'colour-block'
 			Dom.style
+				marginLeft: '10px'
 				border: '1px solid blue'
 			Dom.onTap !-> if cvs then cvs.undo()
 
 		# clear button
 		Dom.div !->
 			Dom.cls 'colour-block'
-			Dom.style
-				margin: '0 10px'
-				border: '1px solid red'
+			Dom.style border: '1px solid red'
 			Dom.onTap !-> if cvs then cvs.clear()
 
 		# brush sizes
-		for size in [{t:'S',n:3}, {t:'M',n:6}, {t:'L',n:9}] then do (size) !->
+		for size in BRUSH_SIZES then do (size) !->
 			Dom.div !->
 				Dom.cls 'colour-block'
 				Dom.style
 					border: '1px solid grey'
 					lineHeight: '40px'
 				Dom.text size.t
+				Obs.observe !->
+					Dom.style
+						border: if lineWidth.get() is size.n then '1px dashed grey' else '1px solid grey'
 				Dom.onTap !-> lineWidth.set size.n
 
 Dom.css
