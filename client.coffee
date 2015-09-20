@@ -7,14 +7,13 @@ Page = require 'page'
 Server = require 'server'
 Ui = require 'ui'
 
-BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}, {t:'XL', n:40}]
-COLOURS = ['white', 'darkslategrey', '#FF6961', '#FDFD96', '#AEC6CF', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
+COLOURS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
 
 exports.render = !->
 	CANVAS_WIDTH = CANVAS_HEIGHT = 500
 	LINE_SEGMENT = 5
 	lines = []
-	colour = Obs.create COLOURS[1]
+	colour = Obs.create COLOURS[0]
 	lineWidth = Obs.create BRUSH_SIZES[1].n
 
 	cvs = false
@@ -26,6 +25,7 @@ exports.render = !->
 			border: '1px solid grey'
 			width: '100%'
 			height: '80%'
+			cursor: 'crosshair'
 
 		ctx = Dom.getContext('2d')
 		ctx.lineJoin = ctx.lineCap = 'round'
@@ -135,20 +135,29 @@ exports.render = !->
 		Dom.on 'mouseup', end
 		Dom.on 'touchend', end
 
+	# toolbar
 	Dom.div !->
 		Dom.style border: '1px solid grey'
+
+		renderBrushSelector lineWidth
+
+		Dom.div !->
+			Dom.style
+				width: '10px'
+				display: 'inline-block'
+
 		for c in COLOURS then do (c) !->
 			Dom.div !->
-				Dom.cls 'colour-block'
+				Dom.cls 'button-block'
 				Dom.style backgroundColor: c
 				Obs.observe !->
 					Dom.style
-						border: if colour.get() is c then '1px dashed white' else 'none'
+						border: if colour.get() is c then '1px dashed grey' else 'none'
 				Dom.onTap !-> colour.set c
 
 		# undo button
 		Dom.div !->
-			Dom.cls 'colour-block'
+			Dom.cls 'button-block'
 			Dom.style
 				marginLeft: '10px'
 				border: '1px solid blue'
@@ -156,27 +165,85 @@ exports.render = !->
 
 		# clear button
 		Dom.div !->
-			Dom.cls 'colour-block'
+			Dom.cls 'button-block'
 			Dom.style border: '1px solid red'
 			Dom.onTap !-> if cvs then cvs.clear()
 
-		# brush sizes
-		for size in BRUSH_SIZES then do (size) !->
+BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}, {t:'XL', n:40}]
+
+renderBrushSelector = (lineWidth) !->
+	selectingBrush = Obs.create false
+	Obs.observe !->
+		if not selectingBrush.get()
 			Dom.div !->
-				Dom.cls 'colour-block'
+				Dom.cls 'button-block'
 				Dom.style
-					border: '1px solid grey'
+					border: '1px dashed grey'
+					position: 'relative'
 					lineHeight: '40px'
-				Dom.text size.t
-				Obs.observe !->
+
+				Dom.div !->
 					Dom.style
-						border: if lineWidth.get() is size.n then '1px dashed grey' else '1px solid grey'
-				Dom.onTap !-> lineWidth.set size.n
+						width: '100%'
+						height: '100%'
+						position: 'absolute'
+						textAlign: 'center'
+					for c in BRUSH_SIZES
+						if lineWidth.get() is c.n
+							Dom.text c.t
+			Dom.onTap !-> selectingBrush.set not selectingBrush.peek()
+		else
+			Dom.div !->
+				Dom.style
+					position: 'relative'
+					display: 'inline-block'
+					width: '40px'
+					height: '40px'
+
+				Dom.div !->
+					Dom.style
+						transition: 'opacity 1s ease'
+						position: 'absolute'
+						maxWidth: '40px'
+						bottom: 0
+
+					Obs.observe !->
+						if selectingBrush.get()
+							Dom.style
+								display: 'block'
+								opacity: 1
+						else
+							Dom.style
+								opacity: 0
+								display: 'none'
+
+					# brush sizes
+					for size in BRUSH_SIZES then do (size) !->
+						Dom.div !->
+							Dom.cls 'button-block'
+							Dom.style
+								border: '1px solid grey'
+								lineHeight: '40px'
+							Dom.div !->
+								Dom.style
+									width: '100%'
+									height: '100%'
+									position: 'absolute'
+									textAlign: 'center'
+								Dom.text size.t
+							Obs.observe !->
+								Dom.style
+									border: if lineWidth.get() is size.n then '1px dashed grey' else '1px solid grey'
+							Dom.onTap !->
+								lineWidth.set size.n
+								selectingBrush.set false
 
 Dom.css
-	'.colour-block':
+	'.button-block':
+		position: 'relative'
 		display: 'inline-block'
 		boxSizing: 'border-box'
+		backgroundColor: 'white' #default
 		width: '40px'
 		height: '40px'
 		cursor: 'pointer'
