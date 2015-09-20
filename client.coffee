@@ -6,6 +6,7 @@ Plugin = require 'plugin'
 Page = require 'page'
 Server = require 'server'
 Ui = require 'ui'
+Icon = require 'icon'
 
 COLOURS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
 
@@ -15,8 +16,8 @@ exports.render = !->
 	lines = []
 	colour = Obs.create COLOURS[0]
 	lineWidth = Obs.create BRUSH_SIZES[1].n
-
 	cvs = false
+
 	Dom.canvas !->
 		Dom.prop('width', CANVAS_WIDTH)
 		Dom.prop('height', CANVAS_HEIGHT)
@@ -73,9 +74,9 @@ exports.render = !->
 			dy = p2.y - p1.y
 			Math.atan2 dx, dy
 
-		getCanvasXY = (e) -> {
-				x: Math.round((e.getTouchXY(cvs).x/cvs.width())*CANVAS_WIDTH)
-				y: Math.round((e.getTouchXY(cvs).y/cvs.height())*CANVAS_HEIGHT)
+		toCanvasCoords = (pt) -> {
+				x: Math.round((pt.x/cvs.width())*CANVAS_WIDTH)
+				y: Math.round((pt.y/cvs.height())*CANVAS_HEIGHT)
 			}
 
 		startTime = false
@@ -92,28 +93,25 @@ exports.render = !->
 			lastPoint = pt
 
 		isMoving = false
-		start = (e) !->
+		start = (pt) !->
 			isDrawing = true
 			if not startTime
 				startTime = Date.now()
 			isMoving = false
-			pt = getCanvasXY e
 			ctx.beginPath()
 			ctx.strokeStyle = colour.peek()
 			ctx.lineWidth = lineWidth.peek()
 			ctx.moveTo pt.x, pt.y
 			drawToPoint pt
 
-		move = (e) !->
+		move = (pt) !->
 			return if not isDrawing
-			currentPoint = getCanvasXY e
-			return if lastPoint? and distanceBetween(lastPoint, currentPoint) < LINE_SEGMENT #let's not draw ridiculously short 1px lines
+			return if lastPoint? and distanceBetween(lastPoint, pt) < LINE_SEGMENT #let's not draw ridiculously short 1px lines
 			isMoving = true
-			drawToPoint currentPoint
+			drawToPoint pt
 
-		end = (e) !->
+		end = (pt) !->
 			return if not isDrawing
-			pt = getCanvasXY e
 			if isMoving #draw a line
 				drawToPoint pt
 			else #draw a dot
@@ -125,49 +123,58 @@ exports.render = !->
 			lines.push line
 			points = []
 
-		# capture events
-		Dom.on 'mousedown', start
-		Dom.on 'touchstart', start
-
-		Dom.on 'mousemove', move
-		Dom.on 'touchmove', move
-
-		Dom.on 'mouseup', end
-		Dom.on 'touchend', end
+		Dom.trackTouch (touches...) !->
+				return if not touches.length
+				t = touches[0]
+				pt = {x: t.xc, y: t.yc}
+				if t.op&1
+					start toCanvasCoords pt
+				else if t.op&2
+					move toCanvasCoords pt
+				else if t.op&4
+					end toCanvasCoords pt
+				return false
+			, cvs
 
 	# toolbar
 	Dom.div !->
-		Dom.style border: '1px solid grey'
-
 		renderBrushSelector lineWidth
 
-		Dom.div !->
-			Dom.style
-				width: '10px'
-				display: 'inline-block'
+		Dom.div !-> Dom.cls 'icon-separator'
 
-		for c in COLOURS then do (c) !->
-			Dom.div !->
-				Dom.cls 'button-block'
-				Dom.style backgroundColor: c
-				Obs.observe !->
-					Dom.style
-						border: if colour.get() is c then '1px dashed grey' else 'none'
-				Dom.onTap !-> colour.set c
+		renderColourSelector colour
+
+		Dom.div !-> Dom.cls 'icon-separator'
 
 		# undo button
 		Dom.div !->
 			Dom.cls 'button-block'
-			Dom.style
-				marginLeft: '10px'
-				border: '1px solid blue'
-			Dom.onTap !-> if cvs then cvs.undo()
+			Icon.render
+				data: 'arrowrotl'
+				size: 20
+				color: 'grey'
+				style: {margin: '9px'}
+				onTap: !-> if cvs then cvs.undo()
 
 		# clear button
 		Dom.div !->
 			Dom.cls 'button-block'
-			Dom.style border: '1px solid red'
-			Dom.onTap !-> if cvs then cvs.clear()
+			Icon.render
+				data: 'cancel'
+				size: 20
+				color: 'grey'
+				style: {margin: '9px'}
+				onTap: !-> if cvs then cvs.clear()
+
+renderColourSelector = (colour) !->
+	for c in COLOURS then do (c) !->
+		Dom.div !->
+			Dom.cls 'button-block'
+			Dom.style backgroundColor: c
+			Obs.observe !->
+				Dom.style
+					border: if colour.get() is c then '1px dashed grey' else 'none'
+			Dom.onTap !-> colour.set c
 
 BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}, {t:'XL', n:40}]
 
@@ -191,7 +198,7 @@ renderBrushSelector = (lineWidth) !->
 					for c in BRUSH_SIZES
 						if lineWidth.get() is c.n
 							Dom.text c.t
-			Dom.onTap !-> selectingBrush.set not selectingBrush.peek()
+				Dom.onTap !-> selectingBrush.set not selectingBrush.peek()
 		else
 			Dom.div !->
 				Dom.style
@@ -222,7 +229,6 @@ renderBrushSelector = (lineWidth) !->
 						Dom.div !->
 							Dom.cls 'button-block'
 							Dom.style
-								border: '1px solid grey'
 								lineHeight: '40px'
 							Dom.div !->
 								Dom.style
@@ -239,6 +245,10 @@ renderBrushSelector = (lineWidth) !->
 								selectingBrush.set false
 
 Dom.css
+	'.icon-separator':
+		width: '10px'
+		display: 'inline-block'
+
 	'.button-block':
 		position: 'relative'
 		display: 'inline-block'

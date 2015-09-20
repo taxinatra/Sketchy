@@ -4,6 +4,9 @@ exports.onInstall = ->
 	# set the counter to 0 on plugin installation
 	Db.shared.set 'counter', 0
 
+exports.client_addDrawing = (drawing) !->
+	
+
 # exported functions prefixed with 'client_' are callable by our client code using `Server.call`
 exports.client_incr = ->
 	log 'hello world!' # write to the plugin's log
@@ -25,7 +28,7 @@ exports.client_fetchHn = ->
 
 exports.hnResponse = (data) !->
 	# called when the Http API has the result for the above request
-	
+
 	re = /<a href="(http[^"]+)">([^<]+)<\/a>/g
 	# regex to find urls/titles in html
 

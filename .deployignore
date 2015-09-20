@@ -1,7 +1,8 @@
 .gitignore
 .deployignore
 .deploykey
-go.sh
+development.sh
+production.sh
 LICENSE
 *.md
 deploy
