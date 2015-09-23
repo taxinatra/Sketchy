@@ -9,15 +9,19 @@ Ui = require 'ui'
 Icon = require 'icon'
 
 COLOURS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
+DRAW_TIME = 50000 # ms
+CANVAS_WIDTH = CANVAS_HEIGHT = 500
 
 exports.render = !->
-	CANVAS_WIDTH = CANVAS_HEIGHT = 500
-	LINE_SEGMENT = 5
-	lines = []
-	colour = Obs.create COLOURS[0]
-	lineWidth = Obs.create BRUSH_SIZES[1].n
-	cvs = false
+	if Page.state.get(0) is 'draw'
+		return renderDraw()
+	Ui.button "New drawing", !->
+		Page.nav 'draw'
 
+renderCanvas = !->
+	steps = []
+	cvs = false
+	ctx = false
 	Dom.canvas !->
 		Dom.prop('width', CANVAS_WIDTH)
 		Dom.prop('height', CANVAS_HEIGHT)
@@ -27,114 +31,150 @@ exports.render = !->
 			width: '100%'
 			height: '80%'
 			cursor: 'crosshair'
-
-		ctx = Dom.getContext('2d')
+		cvs = Dom.get()
+		ctx = cvs.getContext '2d'
 		ctx.lineJoin = ctx.lineCap = 'round'
 
-		cvs = Dom.get()
+	drawStep = (step) !->
+		log 'drawing a step'
 
-		cvs.clear = (replay) !->
-			if not replay? and startTime? then lines.push {clear: true, time: Date.now() - startTime}
-			ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
+	clear = !->
+		ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
 
-		cvs.undo = (replay) !->
-			if not replay? and lines.length > 0 and not lines[lines.length-1].clear then lines.pop()
-			cvs.redraw()
 
-		drawLine = (line) !->
-			first = true
-			ctx.beginPath()
-			ctx.strokeStyle = line.colour
-			ctx.lineWidth = line.lineWidth
-			for pt in line.points # points
-				if first
-					ctx.moveTo pt.x, pt.y
-					first = false
-				else
-					ctx.lineTo pt.x, pt.y
-			ctx.stroke()
+	addStep = (step) !->
+		steps.push step
+		drawStep step
 
-		cvs.redraw = !->
-			cvs.clear true
-			for obj in lines
-				if obj.clear #clear object
-					cvs.clear true
-				else
-					firstPt = obj.points[0]
-					lastPt = obj.points[obj.points.length-1]
-					drawLine obj
+	redraw = !->
+		for step in steps
+			drawStep step
 
-		distanceBetween = (p1, p2) ->
-			dx = p2.x - p1.x
-			dy = p2.y - p1.y
-			Math.sqrt (dx*dx + dy*dy)
+	undo = !->
+		steps.pop()
+		redraw()
 
-		angleBetween = (p1, p2) ->
-			dx = p2.x - p1.x
-			dy = p2.y - p1.y
-			Math.atan2 dx, dy
+	return
+		clear: clear
+		addStep: addStep
 
-		toCanvasCoords = (pt) -> {
-				x: Math.round((pt.x/cvs.width())*CANVAS_WIDTH)
-				y: Math.round((pt.y/cvs.height())*CANVAS_HEIGHT)
-			}
+renderDraw = !->
+	Dom.style _userSelect: 'none'
+	LINE_SEGMENT = 5
+	lines = []
+	colour = Obs.create COLOURS[0]
+	lineWidth = Obs.create BRUSH_SIZES[1].n
+	cvs = false
 
-		startTime = false
+	startTime = Date.now()
+	timeUsed = Obs.create DRAW_TIME
+	Obs.observe !->
+		Obs.interval 100, !->
+			timeUsed.set Math.min((Date.now() - startTime), DRAW_TIME)
+		Obs.onTime DRAW_TIME, !->
+			Server.send 'addDrawing', lines
+			# TODO: send drawing to server
+			Page.nav ''
 
-		isDrawing = false
+	Dom.div !->
+		Dom.text ((DRAW_TIME - timeUsed.get()) * .001).toFixed(1)
 
-		points = []
-		lastPoint = null
-		drawToPoint = (pt) !->
-			pt.time = Date.now() - startTime
-			ctx.lineTo pt.x, pt.y
-			ctx.stroke()
-			points.push pt
-			lastPoint = pt
+	clear = (cvs) !->
+		ctx = cvs.getContext('2d')
+		ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
 
-		isMoving = false
-		start = (pt) !->
-			isDrawing = true
-			if not startTime
-				startTime = Date.now()
-			isMoving = false
-			ctx.beginPath()
-			ctx.strokeStyle = colour.peek()
-			ctx.lineWidth = lineWidth.peek()
-			ctx.moveTo pt.x, pt.y
-			drawToPoint pt
+	cvs = renderCanvas()
+	clear = (replay) !->
+		if not replay then lines.push {clear: true, time: Date.now() - startTime}
+		cvs.clear()
 
-		move = (pt) !->
-			return if not isDrawing
-			return if lastPoint? and distanceBetween(lastPoint, pt) < LINE_SEGMENT #let's not draw ridiculously short 1px lines
-			isMoving = true
-			drawToPoint pt
+	undo = (replay) !->
+		lines.pop()
+		cvs.undo()
 
-		end = (pt) !->
-			return if not isDrawing
-			if isMoving #draw a line
-				drawToPoint pt
-			else #draw a dot
+	drawLine = (line) !->
+		first = true
+		ctx.beginPath()
+		ctx.strokeStyle = line.colour
+		ctx.lineWidth = line.lineWidth
+		for pt in line.points # points
+			if first
+				ctx.moveTo pt.x, pt.y
+				first = false
+			else
+				ctx.lineTo pt.x, pt.y
+		ctx.stroke()
+
+	redraw = !->
+		lines.push {clear: true}
+		cvs.clear()
+		for obj in lines
+			if obj.clear #clear object
+				cvs.clear true
+			else
+				firstPt = obj.points[0]
+				lastPt = obj.points[obj.points.length-1]
+				drawLine obj
+
+	distanceBetween = (p1, p2) ->
+		dx = p2.x - p1.x
+		dy = p2.y - p1.y
+		Math.sqrt (dx*dx + dy*dy)
+
+	angleBetween = (p1, p2) ->
+		dx = p2.x - p1.x
+		dy = p2.y - p1.y
+		Math.atan2 dx, dy
+
+	toCanvasCoords = (pt) -> {
+			x: Math.round((pt.x/cvs.width())*CANVAS_WIDTH)
+			y: Math.round((pt.y/cvs.height())*CANVAS_HEIGHT)
+		}
+
+	drawingLine = false
+
+	points = []
+	lastPoint = null
+	drawToPoint = (pt) !->
+		pt.time = Date.now() - startTime
+		ctx.lineTo pt.x, pt.y
+		ctx.stroke()
+		points.push pt
+		lastPoint = pt
+
+	isMoving = false
+
+	Dom.trackTouch (touches...) !->
+			return if not touches.length
+			t = touches[0]
+			pt = toCanvasCoords {x: t.xc, y: t.yc}
+			if t.op&1
+				drawingLine = true
+				isMoving = false
 				ctx.beginPath()
-				ctx.arc(pt.x, pt.y, 1, 0, 2 * 3.14, true)
-				ctx.stroke()
-			isDrawing = false
-			line = {colour: colour.peek(), lineWidth: lineWidth.peek(), points: points}
-			lines.push line
-			points = []
-
-		Dom.trackTouch (touches...) !->
-				return if not touches.length
-				t = touches[0]
-				pt = {x: t.xc, y: t.yc}
-				if t.op&1
-					start toCanvasCoords pt
-				else if t.op&2
-					move toCanvasCoords pt
-				else if t.op&4
-					end toCanvasCoords pt
-				return false
-			, cvs
+				ctx.strokeStyle = colour.peek()
+				ctx.lineWidth = lineWidth.peek()
+				ctx.moveTo pt.x, pt.y
+				drawToPoint pt
+			else if t.op&2
+				if drawingLine
+					if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw ridiculously short 1px lines
+						isMoving = true
+						drawToPoint pt
+			else if t.op&4
+				if drawingLine
+					if isMoving #draw a line
+						drawToPoint pt
+					else #draw a dot
+						ctx.beginPath()
+						ctx.arc(pt.x, pt.y, 1, 0, 2 * 3.14, true)
+						ctx.stroke()
+					drawingLine = false
+					line = {colour: colour.peek(), lineWidth: lineWidth.peek(), points: points}
+					lines.push line
+					points = []
+			return false
+		, cvs
 
 	# toolbar
 	Dom.div !->
@@ -176,7 +216,7 @@ renderColourSelector = (colour) !->
 					border: if colour.get() is c then '1px dashed grey' else 'none'
 			Dom.onTap !-> colour.set c
 
-BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}, {t:'XL', n:40}]
+BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}, {t:'XL', n:70}]
 
 renderBrushSelector = (lineWidth) !->
 	selectingBrush = Obs.create false

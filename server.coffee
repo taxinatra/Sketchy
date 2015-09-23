@@ -5,7 +5,8 @@ exports.onInstall = ->
 	Db.shared.set 'counter', 0
 
 exports.client_addDrawing = (drawing) !->
-	
+	id = Db.shared.incr 'drawingCount'
+	Db.shared.set 'drawings', id, drawing
 
 # exported functions prefixed with 'client_' are callable by our client code using `Server.call`
 exports.client_incr = ->
