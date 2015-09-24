@@ -18,7 +18,7 @@ exports.render = !->
 	Ui.button "New drawing", !->
 		Page.nav 'draw'
 
-renderCanvas = !->
+renderCanvas = (touchHandler) !->
 	steps = []
 	ctx = false
 	Dom.canvas !->
@@ -30,18 +30,25 @@ renderCanvas = !->
 			width: '100%'
 			height: '80%'
 			cursor: 'crosshair'
-		ctx = Dom.get().getContext '2d'
+		cvs = Dom.get()
+		ctx = cvs.getContext '2d'
 		ctx.lineJoin = ctx.lineCap = 'round'
+
+		if touchHandler?
+			Dom.trackTouch touchHandler, cvs
+
 	cvsDom = Dom.last()
 
 	drawStep = (step) !->
 		switch step.type
 			when 'move'
+				ctx.beginPath()
 				ctx.moveTo step.x, step.y
 			when 'draw'
 				ctx.lineTo step.x, step.y
 				ctx.stroke()
 			when 'dot'
+				ctx.beginPath()
 				ctx.moveTo step.x, step.y
 				ctx.arc step.x, step.y, 1, 0, 2 * 3.14, true
 				ctx.stroke()
@@ -89,6 +96,7 @@ renderDraw = !->
 	steps = []
 
 	startTime = Date.now()
+	### TODO: Re-enable, disabled for testing
 	timeUsed = Obs.create DRAW_TIME
 	Obs.observe !->
 		Obs.interval 100, !->
@@ -100,59 +108,57 @@ renderDraw = !->
 
 	Dom.div !->
 		Dom.text ((DRAW_TIME - timeUsed.get()) * .001).toFixed(1)
+	###
 
-	cvs = renderCanvas()
+	# add a drawing step to our recording
+	addStep = (type, data) !->
+		step = {}
+		if data? then step = data
+		step.type = type
+		step.time = Date.now() - startTime
+		steps.push step
+
+		# draw this step on the canvas
+		cvs.addStep step
 
 	toCanvasCoords = (pt) -> {
 			x: Math.round((pt.x / cvs.dom.width()) * CANVAS_WIDTH)
 			y: Math.round((pt.y / cvs.dom.height()) * CANVAS_HEIGHT)
 		}
 
-	addStep = (type, data) !->
-		step = {}
-		if data? then step = data
-		step.type = type
-		step.time = Date.now() - startTime
-
-		cvs.addStep step
-		steps.push step
-
-	clear = !-> addStep 'clear'
-	undo = !-> addStep 'undo'
-
-	isDrawing = false
-	isMoving = false
-	lastPoint = null
+	drawPhase = 0 # 0:ready, 1: started, 2: moving
+	lastPoint = undefined
 	touchHandler = (touches...) !->
 		return if not touches.length
-		t = touches[0]
+		t = touches[0] # TODO" should I iterate over this?
 		pt = toCanvasCoords {x: t.xc, y: t.yc}
 
 		if t.op&1
-			log "---touch start: (#{pt.x}, #{pt.y})"
-			isDrawing = true # keep track of whether pressed (for moving)
-			isMoving = false # if not moved, make sure we still draw a dot
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
+			drawPhase = 1 # started
+
+		else if drawPhase is 0 # if we're not drawing atm, we're done
+			return true
 
 		else if t.op&2
-			if isDrawing # if we're not drawing atm, we're done
-				if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw lines < minimum
-					isMoving = true
-					addStep 'move', lastPoint
-					lastPoint = pt
-					addStep 'draw', pt
+			if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw lines < minimum
+				addStep 'move', lastPoint
+				lastPoint = pt
+				addStep 'draw', pt
+				drawPhase = 2 # moving
 
 		else if t.op&4
-			log "---touch end: (#{pt.x}, #{pt.y})"
-			if isDrawing
-				if not isMoving #draw a dot
-					addStep 'dot', pt
-				isDrawing = false
-				isMoving = false
+			if drawPhase is 1 # started but not moved, draw a dot
+				addStep 'dot', pt
+			drawPhase = 0
+			lastPoint = undefined
 
-		return false
+		else
+			return true
 
-	Dom.trackTouch touchHandler, cvs.dom
+		return false # if we've handled it, let's stop the rest from responding too
+
+	cvs = renderCanvas touchHandler
 
 	# toolbar
 	Dom.div !->
