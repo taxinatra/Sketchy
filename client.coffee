@@ -20,7 +20,6 @@ exports.render = !->
 
 renderCanvas = !->
 	steps = []
-	cvs = false
 	ctx = false
 	Dom.canvas !->
 		Dom.prop('width', CANVAS_WIDTH)
@@ -31,40 +30,63 @@ renderCanvas = !->
 			width: '100%'
 			height: '80%'
 			cursor: 'crosshair'
-		cvs = Dom.get()
-		ctx = cvs.getContext '2d'
+		ctx = Dom.get().getContext '2d'
 		ctx.lineJoin = ctx.lineCap = 'round'
+	cvsDom = Dom.last()
 
 	drawStep = (step) !->
-		log 'drawing a step'
+		switch step.type
+			when 'move'
+				ctx.moveTo step.x, step.y
+			when 'draw'
+				ctx.lineTo step.x, step.y
+				ctx.stroke()
+			when 'dot'
+				ctx.moveTo step.x, step.y
+				ctx.arc step.x, step.y, 1, 0, 2 * 3.14, true
+				ctx.stroke()
+			when 'col'
+				ctx.strokeStyle = step.col
+			when 'brush'
+				ctx.lineWidth = step.size
+			when 'clear'
+				clear()
+			when 'undo'
+				undo()
+			else
+				log "unknown step type: #{step.type}"
 
-	clear = !->
+	clear = (clearSteps) !->
+		if clearSteps then steps = []
 		ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
-
 
 	addStep = (step) !->
 		steps.push step
 		drawStep step
 
 	redraw = !->
+		clear()
 		for step in steps
 			drawStep step
 
 	undo = !->
-		steps.pop()
+		if steps.length
+			steps.pop()
 		redraw()
 
-	return
+	return {
 		clear: clear
 		addStep: addStep
+		dom: cvsDom
+	}
 
 renderDraw = !->
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
-	lines = []
 	colour = Obs.create COLOURS[0]
 	lineWidth = Obs.create BRUSH_SIZES[1].n
-	cvs = false
+
+	steps = []
 
 	startTime = Date.now()
 	timeUsed = Obs.create DRAW_TIME
@@ -72,117 +94,75 @@ renderDraw = !->
 		Obs.interval 100, !->
 			timeUsed.set Math.min((Date.now() - startTime), DRAW_TIME)
 		Obs.onTime DRAW_TIME, !->
-			Server.send 'addDrawing', lines
+			Server.send 'addDrawing', {word: 'strawberry', steps: steps}
 			# TODO: send drawing to server
 			Page.nav ''
 
 	Dom.div !->
 		Dom.text ((DRAW_TIME - timeUsed.get()) * .001).toFixed(1)
 
-	clear = (cvs) !->
-		ctx = cvs.getContext('2d')
-		ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
-
 	cvs = renderCanvas()
-	clear = (replay) !->
-		if not replay then lines.push {clear: true, time: Date.now() - startTime}
-		cvs.clear()
-
-	undo = (replay) !->
-		lines.pop()
-		cvs.undo()
-
-	drawLine = (line) !->
-		first = true
-		ctx.beginPath()
-		ctx.strokeStyle = line.colour
-		ctx.lineWidth = line.lineWidth
-		for pt in line.points # points
-			if first
-				ctx.moveTo pt.x, pt.y
-				first = false
-			else
-				ctx.lineTo pt.x, pt.y
-		ctx.stroke()
-
-	redraw = !->
-		lines.push {clear: true}
-		cvs.clear()
-		for obj in lines
-			if obj.clear #clear object
-				cvs.clear true
-			else
-				firstPt = obj.points[0]
-				lastPt = obj.points[obj.points.length-1]
-				drawLine obj
-
-	distanceBetween = (p1, p2) ->
-		dx = p2.x - p1.x
-		dy = p2.y - p1.y
-		Math.sqrt (dx*dx + dy*dy)
-
-	angleBetween = (p1, p2) ->
-		dx = p2.x - p1.x
-		dy = p2.y - p1.y
-		Math.atan2 dx, dy
 
 	toCanvasCoords = (pt) -> {
-			x: Math.round((pt.x/cvs.width())*CANVAS_WIDTH)
-			y: Math.round((pt.y/cvs.height())*CANVAS_HEIGHT)
+			x: Math.round((pt.x / cvs.dom.width()) * CANVAS_WIDTH)
+			y: Math.round((pt.y / cvs.dom.height()) * CANVAS_HEIGHT)
 		}
 
-	drawingLine = false
+	addStep = (type, data) !->
+		step = {}
+		if data? then step = data
+		step.type = type
+		step.time = Date.now() - startTime
 
-	points = []
-	lastPoint = null
-	drawToPoint = (pt) !->
-		pt.time = Date.now() - startTime
-		ctx.lineTo pt.x, pt.y
-		ctx.stroke()
-		points.push pt
-		lastPoint = pt
+		cvs.addStep step
+		steps.push step
 
+	clear = !-> addStep 'clear'
+	undo = !-> addStep 'undo'
+
+	isDrawing = false
 	isMoving = false
+	lastPoint = null
+	touchHandler = (touches...) !->
+		return if not touches.length
+		t = touches[0]
+		pt = toCanvasCoords {x: t.xc, y: t.yc}
 
-	Dom.trackTouch (touches...) !->
-			return if not touches.length
-			t = touches[0]
-			pt = toCanvasCoords {x: t.xc, y: t.yc}
-			if t.op&1
-				drawingLine = true
+		if t.op&1
+			log "---touch start: (#{pt.x}, #{pt.y})"
+			isDrawing = true # keep track of whether pressed (for moving)
+			isMoving = false # if not moved, make sure we still draw a dot
+			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
+
+		else if t.op&2
+			if isDrawing # if we're not drawing atm, we're done
+				if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw lines < minimum
+					isMoving = true
+					addStep 'move', lastPoint
+					lastPoint = pt
+					addStep 'draw', pt
+
+		else if t.op&4
+			log "---touch end: (#{pt.x}, #{pt.y})"
+			if isDrawing
+				if not isMoving #draw a dot
+					addStep 'dot', pt
+				isDrawing = false
 				isMoving = false
-				ctx.beginPath()
-				ctx.strokeStyle = colour.peek()
-				ctx.lineWidth = lineWidth.peek()
-				ctx.moveTo pt.x, pt.y
-				drawToPoint pt
-			else if t.op&2
-				if drawingLine
-					if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw ridiculously short 1px lines
-						isMoving = true
-						drawToPoint pt
-			else if t.op&4
-				if drawingLine
-					if isMoving #draw a line
-						drawToPoint pt
-					else #draw a dot
-						ctx.beginPath()
-						ctx.arc(pt.x, pt.y, 1, 0, 2 * 3.14, true)
-						ctx.stroke()
-					drawingLine = false
-					line = {colour: colour.peek(), lineWidth: lineWidth.peek(), points: points}
-					lines.push line
-					points = []
-			return false
-		, cvs
+
+		return false
+
+	Dom.trackTouch touchHandler, cvs.dom
 
 	# toolbar
 	Dom.div !->
 		renderBrushSelector lineWidth
+		Obs.observe !-> addStep 'brush', {size: lineWidth.get()}
 
 		Dom.div !-> Dom.cls 'icon-separator'
 
 		renderColourSelector colour
+		Obs.observe !-> addStep 'col', {col: colour.get()}
 
 		Dom.div !-> Dom.cls 'icon-separator'
 
@@ -194,7 +174,7 @@ renderDraw = !->
 				size: 20
 				color: 'grey'
 				style: {margin: '9px'}
-				onTap: !-> if cvs then cvs.undo()
+				onTap: !-> addStep 'undo'
 
 		# clear button
 		Dom.div !->
@@ -204,7 +184,7 @@ renderDraw = !->
 				size: 20
 				color: 'grey'
 				style: {margin: '9px'}
-				onTap: !-> if cvs then cvs.clear()
+				onTap: !-> addStep 'clear'
 
 renderColourSelector = (colour) !->
 	for c in COLOURS then do (c) !->
@@ -283,6 +263,12 @@ renderBrushSelector = (lineWidth) !->
 							Dom.onTap !->
 								lineWidth.set size.n
 								selectingBrush.set false
+
+# helper function (pythagoras)
+distanceBetween = (p1, p2) ->
+	dx = p2.x - p1.x
+	dy = p2.y - p1.y
+	Math.sqrt (dx*dx + dy*dy)
 
 Dom.css
 	'.icon-separator':
