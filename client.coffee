@@ -13,10 +13,18 @@ DRAW_TIME = 50000 # ms
 CANVAS_WIDTH = CANVAS_HEIGHT = 500
 
 exports.render = !->
-	if Page.state.get(0) is 'draw'
-		return renderDraw()
+	switch Page.state.get(0)
+		when 'draw' then return renderDraw()
+		when 'guess' then return renderGuess Page.state.get('drawing')
+
 	Ui.button "New drawing", !->
 		Page.nav 'draw'
+
+	cnt = Db.shared.get('drawingCount')
+	log '----------- ' +cnt
+	for i in [0...cnt] then do (i) !->
+		Ui.button "Guess #{i + 1}", !->
+			Page.nav {0:'guess', drawing:i}
 
 renderCanvas = (touchHandler) !->
 	steps = []
@@ -24,12 +32,7 @@ renderCanvas = (touchHandler) !->
 	Dom.canvas !->
 		Dom.prop('width', CANVAS_WIDTH)
 		Dom.prop('height', CANVAS_HEIGHT)
-		Dom.style
-			backgroundColor: 'white'
-			border: '1px solid grey'
-			width: '100%'
-			height: '80%'
-			cursor: 'crosshair'
+		Dom.cls 'drawing-canvas'
 		cvs = Dom.get()
 		ctx = cvs.getContext '2d'
 		ctx.lineJoin = ctx.lineCap = 'round'
@@ -87,6 +90,21 @@ renderCanvas = (touchHandler) !->
 		dom: cvsDom
 	}
 
+renderGuess = (i) !->
+	drawings = Db.shared.ref('drawings')
+	drawing = drawings.get(i)
+	steps = drawing.steps
+	cvs = renderCanvas()
+
+	startTime = Date.now()
+	for step in drawing.steps then do (step) !->
+		now = Date.now() - startTime
+		if step.time > now
+			Obs.onTime (step.time - now), !->
+				cvs.addStep step
+		else
+			cvs.addStep step
+
 renderDraw = !->
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
@@ -96,7 +114,7 @@ renderDraw = !->
 	steps = []
 
 	startTime = Date.now()
-	### TODO: Re-enable, disabled for testing
+	# TODO: Re-enable, disabled for testing
 	timeUsed = Obs.create DRAW_TIME
 	Obs.observe !->
 		Obs.interval 100, !->
@@ -108,7 +126,6 @@ renderDraw = !->
 
 	Dom.div !->
 		Dom.text ((DRAW_TIME - timeUsed.get()) * .001).toFixed(1)
-	###
 
 	# add a drawing step to our recording
 	addStep = (type, data) !->
@@ -135,6 +152,7 @@ renderDraw = !->
 
 		if t.op&1
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
+			addStep 'move', lastPoint
 			drawPhase = 1 # started
 
 		else if drawPhase is 0 # if we're not drawing atm, we're done
@@ -142,9 +160,8 @@ renderDraw = !->
 
 		else if t.op&2
 			if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw lines < minimum
-				addStep 'move', lastPoint
-				lastPoint = pt
 				addStep 'draw', pt
+				lastPoint = pt
 				drawPhase = 2 # moving
 
 		else if t.op&4
@@ -277,6 +294,13 @@ distanceBetween = (p1, p2) ->
 	Math.sqrt (dx*dx + dy*dy)
 
 Dom.css
+	'.drawing-canvas':
+		backgroundColor: 'white'
+		border: '1px solid grey'
+		width: '100%'
+		height: '80%'
+		cursor: 'crosshair'
+
 	'.icon-separator':
 		width: '10px'
 		display: 'inline-block'
