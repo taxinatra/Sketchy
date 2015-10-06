@@ -9,7 +9,7 @@ Ui = require 'ui'
 Icon = require 'icon'
 
 COLOURS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
-DRAW_TIME = 50000 # ms
+DRAW_TIME = 90000 # ms
 CANVAS_WIDTH = CANVAS_HEIGHT = 500
 
 exports.render = !->
@@ -21,7 +21,6 @@ exports.render = !->
 		Page.nav 'draw'
 
 	cnt = Db.shared.get('drawingCount')
-	log '----------- ' +cnt
 	for i in [0...cnt] then do (i) !->
 		Ui.button "Guess #{i + 1}", !->
 			Page.nav {0:'guess', drawing:i}
@@ -71,7 +70,7 @@ renderCanvas = (touchHandler) !->
 		ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
 
 	addStep = (step) !->
-		steps.push step
+		if step.type isnt 'undo' then steps.push step
 		drawStep step
 
 	redraw = !->
@@ -113,19 +112,28 @@ renderDraw = !->
 
 	steps = []
 
-	startTime = Date.now()
-	# TODO: Re-enable, disabled for testing
-	timeUsed = Obs.create DRAW_TIME
-	Obs.observe !->
-		Obs.interval 100, !->
-			timeUsed.set Math.min((Date.now() - startTime), DRAW_TIME)
-		Obs.onTime DRAW_TIME, !->
-			Server.send 'addDrawing', {word: 'strawberry', steps: steps}
-			# TODO: send drawing to server
-			Page.nav ''
+	startTime = false
+	timeUsed = Obs.create 0
+
+	startTheClock = !->
+		startTime = Date.now()
+
+		Obs.observe !->
+			Obs.interval 100, !->
+				timeUsed.set Math.min((Date.now() - startTime), DRAW_TIME)
+			Obs.onTime DRAW_TIME, !->
+				Server.send 'addDrawing', {word: 'strawberry', steps: steps}
+				Page.nav ''
 
 	Dom.div !->
-		Dom.text ((DRAW_TIME - timeUsed.get()) * .001).toFixed(1)
+		remaining = DRAW_TIME - timeUsed.get()
+		if remaining < (DRAW_TIME/3)
+			r = 255
+		else
+			r = Math.round(255 * timeUsed.get() / (2*DRAW_TIME/3))
+		Dom.style
+			color: "rgb(#{r}, 0, 0)"
+		Dom.text (remaining * .001).toFixed(1)
 
 	# add a drawing step to our recording
 	addStep = (type, data) !->
@@ -151,6 +159,11 @@ renderDraw = !->
 		pt = toCanvasCoords {x: t.xc, y: t.yc}
 
 		if t.op&1
+			if not startTime
+				startTheClock()
+				# time's started, let's do setup
+				addStep 'brush', {size: lineWidth.get()}
+				addStep 'col', { col: colour.get() }
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
 			addStep 'move', lastPoint
 			drawPhase = 1 # started
@@ -219,7 +232,7 @@ renderColourSelector = (colour) !->
 					border: if colour.get() is c then '1px dashed grey' else 'none'
 			Dom.onTap !-> colour.set c
 
-BRUSH_SIZES = [{t:'S',n:2}, {t:'M',n:6}, {t:'L',n:12}, {t:'XL', n:70}]
+BRUSH_SIZES = [{t:'S',n:3}, {t:'M',n:10}, {t:'L',n:20}, {t:'XL', n:70}]
 
 renderBrushSelector = (lineWidth) !->
 	selectingBrush = Obs.create false
