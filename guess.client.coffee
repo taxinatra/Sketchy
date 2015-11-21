@@ -1,7 +1,13 @@
 Canvas = require 'canvas'
 Obs = require 'obs'
+Db = require 'db'
+Page = require 'page'
+Dom = require 'dom'
 
-exports.render = (drawing) !->
+exports.render = !->
+	i = Page.state.get('drawing')
+	drawing = Db.shared.ref('drawings').get(i)
+
 	cvs = Canvas.render()
 
 	startTime = Date.now()
@@ -12,3 +18,8 @@ exports.render = (drawing) !->
 				cvs.addStep step
 		else
 			cvs.addStep step
+
+#	renderGuessing drawing.word # TODO: replace this with random letters containing the word
+
+#renderGuessing = (word) !->
+	#Dom.text word

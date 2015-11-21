@@ -3,19 +3,18 @@ Dom = require 'dom'
 Plugin = require 'plugin'
 Page = require 'page'
 Ui = require 'ui'
+{tr} = require 'i18n'
 
 Canvas = require 'canvas'
-Drawing = require 'drawing'
-Guess = require 'guess'
 
 exports.render = !->
-	switch Page.state.get(0)
-		when 'draw'
-			return Drawing.render()
-		when 'guess'
-			i = Page.state.get('drawing')
-			drawing = Db.shared.ref('drawings').get(i)
-			return Guess.render drawing
+	if pageName = Page.state.get(0)
+		log pageName
+		if p = load pageName
+			p.render()
+		else
+			Dom.text tr("Loading...")
+		return
 
 	Ui.button "New drawing", !->
 		Page.nav 'draw'

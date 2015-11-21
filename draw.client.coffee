@@ -4,6 +4,7 @@ Page = require 'page'
 Server = require 'server'
 Icon = require 'icon'
 Canvas = require 'canvas'
+Db = require 'db'
 
 COLOURS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
 BRUSH_SIZES = [{t:'S',n:3}, {t:'M',n:10}, {t:'L',n:20}, {t:'XL', n:70}]
@@ -13,6 +14,12 @@ CANVAS_WIDTH = CANVAS_HEIGHT = 500
 DRAW_TIME = 9000 # ms
 
 exports.render = !->
+	myWord = Obs.create false
+	myId = false
+	Server.call 'startDrawing', (id, word) !->
+		myWord.set word
+		myId = id
+
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
 	colour = Obs.create COLOURS[0]
@@ -35,8 +42,11 @@ exports.render = !->
 			timeUsed.set Math.min((Date.now() - st), DRAW_TIME)
 
 		Obs.onTime DRAW_TIME, !->
-			Server.send 'addDrawing', {word: 'strawberry', steps: steps}
+			Server.send 'addDrawing', myId, {steps: steps}
 			Page.nav ''
+
+	Dom.div !->
+		Dom.text myWord.get()
 
 	Dom.div !->
 		remaining = DRAW_TIME - timeUsed.get()
