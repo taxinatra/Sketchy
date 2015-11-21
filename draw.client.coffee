@@ -15,10 +15,10 @@ DRAW_TIME = 9000 # ms
 
 exports.render = !->
 	myWord = Obs.create false
-	myId = false
-	Server.call 'startDrawing', (id, word) !->
-		myWord.set word
-		myId = id
+	drawingId = false
+	Server.call 'startDrawing', (drawing) !->
+		drawingId = drawing.id
+		myWord.set drawing.word
 
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
@@ -42,7 +42,7 @@ exports.render = !->
 			timeUsed.set Math.min((Date.now() - st), DRAW_TIME)
 
 		Obs.onTime DRAW_TIME, !->
-			Server.send 'addDrawing', myId, {steps: steps}
+			Server.send 'addDrawing', drawingId, steps
 			Page.nav ''
 
 	Dom.div !->

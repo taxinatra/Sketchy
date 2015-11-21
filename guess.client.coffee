@@ -3,9 +3,12 @@ Obs = require 'obs'
 Db = require 'db'
 Page = require 'page'
 Dom = require 'dom'
+Server = require 'server'
 
 exports.render = !->
 	i = Page.state.get('drawing')
+	letters = Obs.create false
+	Server.call 'getLetters', i, (_letters) !-> letters.set _letters
 	drawing = Db.shared.ref('drawings').get(i)
 
 	cvs = Canvas.render()
@@ -19,7 +22,15 @@ exports.render = !->
 		else
 			cvs.addStep step
 
-#	renderGuessing drawing.word # TODO: replace this with random letters containing the word
+	log drawing
+	Obs.observe !->
+		if letters.get()
+			renderGuessing letters.get() # TODO: replace this with random letters containing the word
 
-#renderGuessing = (word) !->
-	#Dom.text word
+renderGuessing = (letters) !->
+	scrambled = []
+	letters = (letters[i] for i in [0...letters.length])
+	while letters.length
+		index = Math.floor(Math.random() * letters.length)
+		scrambled.push letters.splice index, 1
+	Dom.text scrambled.join ' '
