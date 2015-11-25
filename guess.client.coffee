@@ -28,9 +28,4 @@ exports.render = !->
 			renderGuessing letters.get() # TODO: replace this with random letters containing the word
 
 renderGuessing = (letters) !->
-	scrambled = []
-	letters = (letters[i] for i in [0...letters.length])
-	while letters.length
-		index = Math.floor(Math.random() * letters.length)
-		scrambled.push letters.splice index, 1
-	Dom.text scrambled.join ' '
+	Dom.text letters.join ' '

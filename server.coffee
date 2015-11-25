@@ -1,6 +1,7 @@
 Db = require 'db'
 Plugin = require 'plugin'
 WordLists = require 'wordLists'
+Letters = require 'letters'
 
 exports.client_addDrawing = (id, steps) !->
 	personalDb = Db.personal Plugin.userId()
@@ -31,5 +32,18 @@ exports.client_startDrawing = (cb) !->
 
 exports.client_getLetters = (drawingId, cb) !->
 	drawing = Db.shared.get 'drawings', drawingId
-	word = WordLists.wordList()[drawing.wordId]
-	cb.reply word[1]
+
+	# the real word
+	word = WordLists.wordList()[drawing.wordId][1]
+
+	# some random letters
+	letters = Letters.getRandom word.length
+
+	for c in word then letters.push c
+
+	scrambledLetters = []
+	while letters.length
+		index = Math.floor(Math.random() * letters.length)
+		scrambledLetters.push letters.splice index, 1
+
+	cb.reply scrambledLetters
