@@ -95,5 +95,5 @@ Dom.css
 		backgroundColor: 'white'
 		border: '1px solid grey'
 		width: '100%'
-		height: '80%'
+		height: '100%'
 		cursor: 'crosshair'

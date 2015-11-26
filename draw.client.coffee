@@ -112,7 +112,13 @@ exports.render = !->
 
 		return false # if we've handled it, let's stop the rest from responding too
 
-	cvs = Canvas.render touchHandler
+	cvs = false
+	Dom.div !->
+		Dom.style
+			position: 'relative'
+			width: '100%'
+			height: '80%'
+		cvs = Canvas.render touchHandler
 
 	# toolbar
 	Dom.div !->

@@ -41,9 +41,12 @@ exports.client_getLetters = (drawingId, cb) !->
 
 	for c in word then letters.push c
 
-	scrambledLetters = []
+	count = 0
+	scrambledLetters = {}
 	while letters.length
 		index = Math.floor(Math.random() * letters.length)
-		scrambledLetters.push letters.splice index, 1
+		scrambledLetters[count] = letters.splice index, 1
+		count++
+	scrambledLetters.count = count
 
-	cb.reply scrambledLetters
+	cb.reply word, scrambledLetters
