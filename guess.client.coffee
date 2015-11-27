@@ -8,13 +8,20 @@ Server = require 'server'
 exports.render = !->
 	i = Page.state.get('drawing')
 	letters = Obs.create false
-	word = Obs.create()
+	word = null
+	initialized = Obs.create false
+	success = Obs.create false
+
 	Server.call 'getLetters', i, (_word, _letters) !->
-		word.set _word
+		word = _word
 		letters.set _letters
+		initialized.set true
 	drawing = Db.shared.ref('drawings').get(i)
 
 	cvs = null
+	Dom.div !->
+		if success.get()
+			Dom.text "Hoera!"
 	Dom.div !->
 		Dom.style
 			height: '300px'
@@ -30,45 +37,44 @@ exports.render = !->
 		else
 			cvs.addStep step
 
-	log drawing
-	Obs.observe !->
-		if word.get()
-			renderGuessing word.get(), letters # TODO: shouldn't have the real word client-side
-
-renderGuessing = (word, letters) !->
 	chosenLetters = Obs.create()
-	chooseLetter = (curIndex, c) !->
-		# find next empty spo
-		for i in [0...word.length]
-			if not chosenLetters.get(i)?
-				chosenLetters.set(i, c)
-				letters.set(curIndex, null)
-				letters.set('count', letters.get('count') - 1)
+	Obs.observe !->
+		return if not initialized.get()
+		chosenLetters.set 'count', word.length
+
+		Obs.observe !->
+			solution = (chosenLetters.get(i) for i in [0...word.length]).join ''
+			if solution is word
+				success.set true
+
+		renderGuessing chosenLetters, letters # TODO: shouldn't have the real word client-side
+
+renderGuessing = (chosenLetters, remainingLetters) !->
+	moveTile = (from, to, curIndex) !->
+		# find next empty spot
+		for i in [0...to.get('count')]
+			if not to.get(i)?
+				to.set i, from.get(curIndex)
+				from.set curIndex, null
 				break
 
-	Dom.div !->
-		Dom.style
-			textAlign: 'center'
-		for i in [0...word.length] then do (i) !->
-			Dom.div !->
-				Dom.cls 'tile'
-				if chosenLetters.get(i)?
-					Dom.cls 'letter'
-					Dom.text chosenLetters.get(i)
-				else
-					Dom.cls 'empty'
+	renderTiles = (from, to) !->
+		Dom.div !->
+			Dom.style
+				textAlign: 'center'
+			for i in [0...from.get('count')] then do (i) !->
+				Dom.div !->
+					Dom.cls 'tile'
+					if not from.get(i)?
+						Dom.cls 'empty'
+						Dom.text ' '
+					else
+						Dom.cls 'letter'
+						Dom.text from.get(i)
+						Dom.onTap !-> moveTile from, to, i
 
-	Dom.div !->
-		Dom.style
-			textAlign: 'center'
-		for i in [0...letters.get('count')] then do (i) !->
-			Dom.div !->
-				Dom.cls 'tile'
-				Dom.cls 'letter'
-
-				Dom.text letters.get(i)
-				Dom.onTap !->
-					chooseLetter i, letters.get(i)
+	renderTiles chosenLetters, remainingLetters
+	renderTiles remainingLetters, chosenLetters
 
 Dom.css
 	'.tile':
@@ -78,6 +84,8 @@ Dom.css
 		height: '40px'
 		borderRadius: '3px'
 		border: '1px solid grey'
+		verticalAlign: 'middle'
+		fontSize: '30px'
 
 	'.tile.empty':
 		background: 'white'
@@ -85,6 +93,5 @@ Dom.css
 	'.tile.letter':
 		background: 'beige'
 		color: 'grey'
-		fontSize: '30px'
 		textAlign: 'center'
 		boxShadow: 'black 1px 1px'
