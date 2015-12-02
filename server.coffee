@@ -37,7 +37,7 @@ exports.client_getLetters = (drawingId, cb) !->
 	word = WordLists.wordList()[drawing.wordId][1]
 
 	# some random letters
-	letters = Letters.getRandom word.length
+	letters = Letters.getRandom Math.min(8, Math.max(5, word.length))
 
 	for c in word then letters.push c
 

@@ -11,7 +11,7 @@ BRUSH_SIZES = [{t:'S',n:3}, {t:'M',n:10}, {t:'L',n:20}, {t:'XL', n:70}]
 
 CANVAS_WIDTH = CANVAS_HEIGHT = 500
 
-DRAW_TIME = 9000 # ms
+DRAW_TIME = 45000 # ms
 
 exports.render = !->
 	myWord = Obs.create false

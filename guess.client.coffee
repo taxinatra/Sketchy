@@ -12,6 +12,10 @@ exports.render = !->
 	initialized = Obs.create false
 	success = Obs.create false
 
+	Obs.observe !->
+		if success.get()
+			Dom.text "Hoera, je hebt het woord geraden!"
+
 	Server.call 'getLetters', i, (_word, _letters) !->
 		word = _word
 		letters.set _letters
@@ -19,12 +23,12 @@ exports.render = !->
 	drawing = Db.shared.ref('drawings').get(i)
 
 	cvs = null
-	Dom.div !->
-		if success.get()
-			Dom.text "Hoera!"
+
 	Dom.div !->
 		Dom.style
-			height: '300px'
+			height: '200px'
+			width: '200px'
+			margin: 'auto'
 			position: 'relative'
 		cvs = Canvas.render()
 
