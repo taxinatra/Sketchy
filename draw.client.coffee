@@ -117,7 +117,7 @@ exports.render = !->
 		Dom.style
 			position: 'relative'
 			width: '100%'
-			height: '80%'
+			height: '70%'
 		cvs = Canvas.render touchHandler
 
 	# toolbar
