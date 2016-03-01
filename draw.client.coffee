@@ -1,15 +1,20 @@
+App = require 'app'
+Canvas = require 'canvas'
+Db = require 'db'
 Dom = require 'dom'
+Form = require 'form'
+Icon = require 'icon'
 Obs = require 'obs'
 Page = require 'page'
 Server = require 'server'
-Icon = require 'icon'
-Canvas = require 'canvas'
-Db = require 'db'
+Ui = require 'ui'
+{tr} = require 'i18n'
 
-COLOURS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
-BRUSH_SIZES = [{t:'S',n:3}, {t:'M',n:10}, {t:'L',n:20}, {t:'XL', n:70}]
+COLORS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
+BRUSH_SIZES = [{t:'S',n:5}, {t:'M',n:16}, {t:'L',n:36}, {t:'XL', n:160}]
 
-CANVAS_WIDTH = CANVAS_HEIGHT = 500
+CANVAS_SIZE = 676
+CANVAS_RATIO = 1.283783784 # (296 * 380)
 
 DRAW_TIME = 45000 # ms
 
@@ -18,48 +23,47 @@ exports.render = !->
 	drawingId = false
 	Server.call 'startDrawing', (drawing) !->
 		drawingId = drawing.id
-		myWord.set drawing.word
+		myWord.set drawing
 
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
-	colour = Obs.create COLOURS[0]
+	color = Obs.create COLORS[0]
 	lineWidth = Obs.create BRUSH_SIZES[1].n
 
 	steps = []
 
 	startTime = Obs.create false
 	timeUsed = Obs.create 0
+	size = 296 # render size of the canvas
+
+	Obs.observe !->
+		if startTime.get()
+			Form.setPageSubmit submit, true
+			Obs.onClean !->
+				log "onclean bar startTheClock"
+
+	# ------------ helper functions -------------
 
 	startTheClock = !->
 		return if startTime.peek() isnt false # timer already running
+		log "startTheClock"
 		startTime.set Date.now()
 
-	Obs.observe !->
-		st = startTime.get()
-		return if st is false
-
-		Obs.interval 100, !->
-			timeUsed.set Math.min((Date.now() - st), DRAW_TIME)
-
-		Obs.onTime DRAW_TIME, !->
-			Server.send 'addDrawing', drawingId, steps
-			Page.nav ''
-
-	Dom.div !->
-		Dom.text myWord.get()
-
-	Dom.div !->
-		remaining = DRAW_TIME - timeUsed.get()
-		if remaining < (DRAW_TIME/3)
-			r = 255
-		else
-			r = Math.round(255 * timeUsed.get() / (2*DRAW_TIME/3))
-		Dom.style
-			color: "rgb(#{r}, 0, 0)"
-		Dom.text (remaining * .001).toFixed(1)
+	submit = !->
+		log "submitting! across the universe"
+		time = Date.now()
+		Server.sync 'addDrawing', drawingId, steps, time, !->
+			log "predict"
+			Db.shared.set 'drawings', drawingId,
+				userId: App.memberId()
+				wordId: myWord.peek().id
+				steps: steps
+				time: time
+		Page.up()
 
 	# add a drawing step to our recording
 	addStep = (type, data) !->
+		# log "adding Step:", type, data
 		step = {}
 		if data? then step = data
 		step.type = type
@@ -69,9 +73,10 @@ exports.render = !->
 		# draw this step on the canvas
 		cvs.addStep step
 
-	toCanvasCoords = (pt) -> {
-			x: Math.round((pt.x / cvs.dom.width()) * CANVAS_WIDTH)
-			y: Math.round((pt.y / cvs.dom.height()) * CANVAS_HEIGHT)
+	toCanvasCoords = (pt) ->
+		{
+			x: Math.round((pt.x / size) * CANVAS_SIZE)
+			y: Math.round((pt.y / size) * CANVAS_SIZE)
 		}
 
 	drawPhase = 0 # 0:ready, 1: started, 2: moving
@@ -86,8 +91,8 @@ exports.render = !->
 				log 'starting the clock'
 				startTheClock()
 				# time's started, let's do setup
-				addStep 'brush', {size: lineWidth.get()}
-				addStep 'col', { col: colour.get() }
+				addStep 'brush', {size: lineWidth.peek()}
+				addStep 'col', { col: color.peek() }
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
 			addStep 'move', lastPoint
 			drawPhase = 1 # started
@@ -97,6 +102,7 @@ exports.render = !->
 
 		else if t.op&2
 			if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw lines < minimum
+				# TODO: also limit on delta angel and delta time
 				addStep 'draw', pt
 				lastPoint = pt
 				drawPhase = 2 # moving
@@ -112,121 +118,162 @@ exports.render = !->
 
 		return false # if we've handled it, let's stop the rest from responding too
 
+	Obs.observe !-> # send the drawing to server
+		st = startTime.get()
+		return if st is false
+
+		Obs.interval 1000, !->
+			timeUsed.set Math.min((Date.now() - st), DRAW_TIME)
+
+		Obs.onTime DRAW_TIME, submit
+
+	# ------------ button functions ---------------
+	renderColorSelector = (color) !->
+		for c in COLORS then do (c) !->
+			Dom.div !->
+				Dom.cls 'button-block'
+				Dom.div !->
+					Dom.style
+						height: '100%'
+						width: '100%'
+						borderRadius: '50%'
+						backgroundColor: c
+				Obs.observe !->
+					Dom.style
+						border: if color.get() is c then '4px solid grey' else 'none'
+						padding: if color.get() is c then 0 else 4
+				Dom.onTap !->
+					color.set c
+					log "well? c:", c
+					addStep 'col', { col: c }
+
+	renderBrushSelector = (lineWidth) !->
+		for b in BRUSH_SIZES then do (b) !->
+			Dom.div !->
+				Dom.cls 'button-block'
+				Dom.div !->
+					Dom.style
+						height: '100%'
+						width: '100%'
+						borderRadius: '50%'
+						backgroundColor: 'white'
+						Box: 'middle center'
+						fontWeight: 'bold'
+					Dom.text b.t
+				Obs.observe !->
+					Dom.style
+						border: if lineWidth.get() is b.n then '4px solid grey' else 'none'
+						padding: if lineWidth.get() is b.n then 0 else 4
+				Dom.onTap !->
+					lineWidth.set b.n
+					addStep 'brush', { size: b.n }
+
+	# ------------ compose dom -------------
+
+	Dom.style backgroundColor: '#666', height: '100%'
+
+	Ui.top !->
+		Dom.style
+			textAlign: 'center'
+			fontWeight: 'bold'
+		word = myWord.get()
+		if word
+			Dom.text tr("Draw %1 '%2'", word.prefix, word.word)
+		else
+			Dom.text "_" # prevent resizing when word has been retrieved
+
+	Dom.div !-> # timer
+		Dom.style
+			position: 'absolute'
+			width: '40px'
+			height: '40px'
+			left: Page.width()/2-25+'px'
+			top: '50px'
+			zIndex: 10
+			borderRadius: '50%'
+			Box: 'middle center'
+		Obs.observe !->
+			remaining = DRAW_TIME - timeUsed.get()
+			Dom.style
+				background_: "linear-gradient(top, rgba(255,26,0,0) 0%, rgba(255,26,0,0)  #{100-remaining/DRAW_TIME*100}%, rgba(255,26,0,1) #{99-remaining/DRAW_TIME*100}%, rgba(255,26,0,1) 100%)"
+			if remaining < (DRAW_TIME/3)
+				r = 255
+			else
+				r = Math.round(255 * timeUsed.get() / (2*DRAW_TIME/3))
+			Dom.text (remaining * .001).toFixed(0)
+
 	cvs = false
 	Dom.div !->
 		Dom.style
 			position: 'relative'
-			width: '100%'
-			height: '70%'
-		cvs = Canvas.render touchHandler
+			margin: '0 auto'
+		size = 296
+		Obs.observe !-> # set size
+			# 296 * 360, ratio=1:1.126
+			width = Page.width()-24 # margin
+			height = Page.height()-16-40-80 # margin, top, shelf
+			size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
+			Dom.style width: size+'px', height: size*CANVAS_RATIO+'px'
+		log "canvas render size:", size
+		cvs = Canvas.render size, touchHandler # render canvas
+
+		Dom.div !->
+			return if startTime.get()
+			Dom.style
+				position: 'absolute'
+				top: '30%'
+				width: '100%'
+				fontSize: '90%'
+			word = myWord.get()
+			return unless word
+			Ui.emptyText tr("Draw %1 '%2'", word.prefix, word.word)
+			Ui.emptyText tr("Timer will start when you start drawing");
 
 	# toolbar
-	Dom.div !->
-		renderBrushSelector lineWidth
-		Obs.observe !-> addStep 'brush', {size: lineWidth.get()}
-
-		Dom.div !-> Dom.cls 'icon-separator'
-
-		renderColourSelector colour
-		Obs.observe !-> addStep 'col', {col: colour.get()}
-
-		Dom.div !-> Dom.cls 'icon-separator'
-
-		# undo button
+	Dom.div !-> # shelf
+		Dom.style
+			Flex: true
+			height: '80px'
+			marginBottom: '4px'
+			# position: 'relative'
 		Dom.div !->
-			Dom.cls 'button-block'
-			Icon.render
-				data: 'arrowrotl'
-				size: 20
-				color: 'grey'
-				style: {margin: '9px'}
-				onTap: !-> addStep 'undo'
-
-		# clear button
-		Dom.div !->
-			Dom.cls 'button-block'
-			Icon.render
-				data: 'cancel'
-				size: 20
-				color: 'grey'
-				style: {margin: '9px'}
-				onTap: !-> addStep 'clear'
-
-renderColourSelector = (colour) !->
-	for c in COLOURS then do (c) !->
-		Dom.div !->
-			Dom.cls 'button-block'
-			Dom.style backgroundColor: c
-			Obs.observe !->
-				Dom.style
-					border: if colour.get() is c then '1px dashed grey' else 'none'
-			Dom.onTap !-> colour.set c
-
-renderBrushSelector = (lineWidth) !->
-	selectingBrush = Obs.create false
-	Obs.observe !->
-		if not selectingBrush.get()
+			Dom.style Flex: true, height: '42px'
+			Dom.overflow()
 			Dom.div !->
+				Dom.style
+					Box: 'top'
+					width: 40*COLORS.length + 'px'
+					marginTop: '2px'
+				renderColorSelector color
+			# Obs.observe !-> addStep 'brush', {size: lineWidth.get()}
+
+		Dom.div !->
+			Dom.style Box: 'top'
+
+			Dom.div !-> # undo button
 				Dom.cls 'button-block'
-				Dom.style
-					border: '1px dashed grey'
-					position: 'relative'
-					lineHeight: '40px'
+				Icon.render
+					data: 'arrowrotl'
+					size: 20
+					color: 'white'
+					style: padding: '10px'
+					onTap: !-> addStep 'undo'
 
-				Dom.div !->
-					Dom.style
-						width: '100%'
-						height: '100%'
-						position: 'absolute'
-						textAlign: 'center'
-					for c in BRUSH_SIZES
-						if lineWidth.get() is c.n
-							Dom.text c.t
-				Dom.onTap !-> selectingBrush.set not selectingBrush.peek()
-		else
 			Dom.div !->
-				Dom.style
-					position: 'relative'
-					display: 'inline-block'
-					width: '40px'
-					height: '40px'
+				Dom.style Flex: true, Box: 'top center'
+				renderBrushSelector lineWidth
 
-				Dom.div !->
-					Dom.style
-						transition: 'opacity 1s ease'
-						position: 'absolute'
-						maxWidth: '40px'
-						bottom: 0
+			Dom.div !-> # clear button
+				Dom.cls 'button-block'
+				Icon.render
+					data: 'cancel'
+					size: 20
+					color: 'white'
+					style: padding: '10px'
+					onTap: !-> addStep 'clear'
 
-					Obs.observe !->
-						if selectingBrush.get()
-							Dom.style
-								display: 'block'
-								opacity: 1
-						else
-							Dom.style
-								opacity: 0
-								display: 'none'
 
-					# brush sizes
-					for size in BRUSH_SIZES then do (size) !->
-						Dom.div !->
-							Dom.cls 'button-block'
-							Dom.style
-								lineHeight: '40px'
-							Dom.div !->
-								Dom.style
-									width: '100%'
-									height: '100%'
-									position: 'absolute'
-									textAlign: 'center'
-								Dom.text size.t
-							Obs.observe !->
-								Dom.style
-									border: if lineWidth.get() is size.n then '1px dashed grey' else '1px solid grey'
-							Dom.onTap !->
-								lineWidth.set size.n
-								selectingBrush.set false
+
 
 # helper function (pythagoras)
 distanceBetween = (p1, p2) ->
@@ -241,9 +288,8 @@ Dom.css
 
 	'.button-block':
 		position: 'relative'
-		display: 'inline-block'
 		boxSizing: 'border-box'
-		backgroundColor: 'white' #default
+		borderRadius: '50%'
 		width: '40px'
 		height: '40px'
 		cursor: 'pointer'

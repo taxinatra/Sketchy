@@ -1,16 +1,25 @@
 Dom = require 'dom'
 
-CANVAS_WIDTH = CANVAS_HEIGHT = 500
+CANVAS_SIZE = 676
+CANVAS_RATIO = 1.283783784 # (296 * 380)
 
-exports.render = (touchHandler) !->
+exports.render = (size, touchHandler) !->
+	scale = size/CANVAS_SIZE
+	width = CANVAS_SIZE
+	height = CANVAS_SIZE*CANVAS_RATIO
 	steps = []
 	ctx = false
 	Dom.canvas !->
-		Dom.prop('width', CANVAS_WIDTH)
-		Dom.prop('height', CANVAS_HEIGHT)
+		Dom.prop('width', width)
+		Dom.prop('height', height)
 		Dom.cls 'drawing-canvas'
 		cvs = Dom.get()
 		ctx = cvs.getContext '2d'
+		ctx.SmoothingEnabled = true
+		ctx.mozImageSmoothingEnabled = true
+		ctx.webkitImageSmoothingEnabled = true
+		ctx.msImageSmoothingEnabled = true
+		ctx.imageSmoothingEnabled = true
 		ctx.lineJoin = ctx.lineCap = 'round'
 
 		if touchHandler?
@@ -27,7 +36,7 @@ exports.render = (touchHandler) !->
 			when 'draw'
 				ctx.lineTo step.x, step.y
 				ctx.stroke()
-				#log "drawing: #{step.x} #{step.y}"
+				# log "drawing: #{step.x} #{step.y}"
 			when 'dot'
 				ctx.beginPath()
 				ctx.moveTo step.x, step.y
@@ -35,10 +44,10 @@ exports.render = (touchHandler) !->
 				ctx.stroke()
 			when 'col'
 				ctx.strokeStyle = step.col
-				#log "setting colour: #{step.col}"
+				log "setting color: #{step.col}"
 			when 'brush'
 				ctx.lineWidth = step.size
-				#log "setting brush: #{step.size}"
+				log "setting brush:", step
 			when 'clear'
 				clear()
 				#log "clearing"
@@ -50,7 +59,7 @@ exports.render = (touchHandler) !->
 
 	clear = (clearSteps) !->
 		if clearSteps then steps = []
-		ctx.clearRect 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
+		ctx.clearRect 0, 0, width, height
 
 	addStep = (step) !->
 		if step.type isnt 'undo' then steps.push step
@@ -64,13 +73,13 @@ exports.render = (touchHandler) !->
 	undo = !->
 		return if not steps.length
 
-		#brush size and colour
+		#brush size and color
 		storedSteps = []
 		# undo isn't talking about invisible changes, so don't remove those.
 		while steps[steps.length-1].type in ['brush', 'col']
 			storedSteps.unshift steps.pop()
 
-			# nothing to undo, really. Just restore the brush and colour and return
+			# nothing to undo, really. Just restore the brush and color and return
 			if not steps.length
 				steps = steps.concat storedSteps
 				return
@@ -92,8 +101,7 @@ exports.render = (touchHandler) !->
 
 Dom.css
 	'.drawing-canvas':
-		backgroundColor: 'white'
-		border: '1px solid grey'
+		backgroundColor: '#ddd'
 		width: '100%'
 		height: '100%'
 		cursor: 'crosshair'

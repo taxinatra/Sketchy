@@ -1,27 +1,38 @@
 Db = require 'db'
 Dom = require 'dom'
-Plugin = require 'plugin'
+App = require 'app'
 Page = require 'page'
+# Form = require 'form'
 Ui = require 'ui'
 {tr} = require 'i18n'
 
-Canvas = require 'canvas'
+Draw = require 'draw'
+Guess = require 'guess'
 
 exports.render = !->
-	if pageName = Page.state.get(0)
-		log pageName
-		if p = load pageName
-			p.render()
-		else
-			Dom.text tr("Loading...")
-		return
+	pageName = Page.state.get(0)
+	log "page state:", pageName
+	return Draw.render() if pageName is 'draw'
+	return Guess.render() if pageName is 'guess'
 
-	Ui.button "New drawing", !->
-		Page.nav 'draw'
+	renderOverview()
 
-	cnt = Db.shared.get('drawingCount')
-	for i in [(cnt-1)..0] then do (i) !->
-		Dom.div !->
-			Dom.text "Guess #{i + 1}"
-			Dom.onTap !->
-				Page.nav {0:'guess', drawing:i}
+renderOverview = !->
+	Ui.item
+		icon: 'add'
+		content: tr("Start drawing")
+		onTap: !->
+			Page.nav 'draw'
+
+	Db.shared.iterate 'drawings', (drawing) !->
+		memberId = drawing.get('userId')
+		Ui.item
+			avatar: App.memberAvatar(memberId)
+			content: tr("Guess drawing by %1", App.memberName(memberId))
+			onTap: !->
+				log "navigating to:", drawing.key()
+				Page.nav {0:'guess', '?drawing':drawing.key()}
+	, (drawing) ->
+		drawing.time|0
+	Page.setFooter
+		label: 'See scores'
