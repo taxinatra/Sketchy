@@ -10,25 +10,35 @@ Server = require 'server'
 Ui = require 'ui'
 {tr} = require 'i18n'
 
-COLORS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
+Config = require 'config'
+
+# COLORS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
+# use deciHexi only!
+COLORS = ['#EEEDEA', '#45443D', '#FFFFFF', '#0077CF', '#DD2BC3', '#F1560A', '#F1E80A', '#0CE666', '#BA5212', '#F9B6DD']
+BRIGHT_COLORS = ['#EEEDEA', '#45443D', '#FFFFFF', '#5CACE7', '#F0ABE6', '#F1AA88', '#FFFCAF', '#9BFF80', '#E59B6D', '#F9B6DD']
+DARK_COLORS = ['#EEEDEA', '#000000', '#D6C9CC', '#003D6B', '#731665', '#960F00', '#785A00', '#00840B', '#513515', '#875572']
 BRUSH_SIZES = [{t:'S',n:5}, {t:'M',n:16}, {t:'L',n:36}, {t:'XL', n:160}]
 
-CANVAS_SIZE = 676
-CANVAS_RATIO = 1.283783784 # (296 * 380)
+CANVAS_SIZE = Config.canvasSize()
+CANVAS_RATIO = Config.canvasRatio()
 
-DRAW_TIME = 45000 # ms
+DRAW_TIME = Config.drawTime()
 
 exports.render = !->
-	myWord = Obs.create false
+	myWordO = Obs.create false
 	drawingId = false
 	Server.call 'startDrawing', (drawing) !->
+		if drawing is false
+			log "You don't belong here! Wait for your turn."
+			Page.back()
 		drawingId = drawing.id
-		myWord.set drawing
+		myWordO.set drawing
 
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
-	color = Obs.create COLORS[0]
-	lineWidth = Obs.create BRUSH_SIZES[1].n
+	colorO = Obs.create 1
+	tintO = Obs.create 1
+	lineWidthO = Obs.create BRUSH_SIZES[1].n
 
 	steps = []
 
@@ -39,31 +49,37 @@ exports.render = !->
 	Obs.observe !->
 		if startTime.get()
 			Form.setPageSubmit submit, true
-			Obs.onClean !->
-				log "onclean bar startTheClock"
 
 	# ------------ helper functions -------------
 
+	getColor = (i=null) ->
+		if i is null
+			i = colorO.peek()
+		t = tintO.peek()
+		return DARK_COLORS[i] if t is 0
+		return COLORS[i] if t is 1
+		return BRIGHT_COLORS[i] if t is 2
+
 	startTheClock = !->
 		return if startTime.peek() isnt false # timer already running
-		log "startTheClock"
 		startTime.set Date.now()
 
 	submit = !->
-		log "submitting! across the universe"
-		time = Date.now()
+		time = Date.now()*.001
+
+		# TODO? upload the result as png
+
+		# tell the server we're done
 		Server.sync 'addDrawing', drawingId, steps, time, !->
-			log "predict"
 			Db.shared.set 'drawings', drawingId,
-				userId: App.memberId()
-				wordId: myWord.peek().id
+				memberId: App.memberId()
+				wordId: myWordO.peek().id
 				steps: steps
 				time: time
 		Page.up()
 
 	# add a drawing step to our recording
 	addStep = (type, data) !->
-		# log "adding Step:", type, data
 		step = {}
 		if data? then step = data
 		step.type = type
@@ -91,8 +107,8 @@ exports.render = !->
 				log 'starting the clock'
 				startTheClock()
 				# time's started, let's do setup
-				addStep 'brush', {size: lineWidth.peek()}
-				addStep 'col', { col: color.peek() }
+				addStep 'brush', {size: lineWidthO.peek()}
+				addStep 'col', { col: colorO.peek() }
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
 			addStep 'move', lastPoint
 			drawPhase = 1 # started
@@ -128,8 +144,8 @@ exports.render = !->
 		Obs.onTime DRAW_TIME, submit
 
 	# ------------ button functions ---------------
-	renderColorSelector = (color) !->
-		for c in COLORS then do (c) !->
+	renderColorSelector = !->
+		for i in [0...COLORS.length] then do (i) !->
 			Dom.div !->
 				Dom.cls 'button-block'
 				Dom.div !->
@@ -137,17 +153,17 @@ exports.render = !->
 						height: '100%'
 						width: '100%'
 						borderRadius: '50%'
-						backgroundColor: c
+					Dom.style backgroundColor: getColor(i)
+					tintO.get() # reactive on tint change
 				Obs.observe !->
 					Dom.style
-						border: if color.get() is c then '4px solid grey' else 'none'
-						padding: if color.get() is c then 0 else 4
+						border: if colorO.get() is i then '4px solid grey' else 'none'
+						padding: if colorO.get() is i then 0 else 4
 				Dom.onTap !->
-					color.set c
-					log "well? c:", c
-					addStep 'col', { col: c }
+					colorO.set i
+					addStep 'col', { col: getColor() }
 
-	renderBrushSelector = (lineWidth) !->
+	renderBrushSelector = !->
 		for b in BRUSH_SIZES then do (b) !->
 			Dom.div !->
 				Dom.cls 'button-block'
@@ -162,10 +178,10 @@ exports.render = !->
 					Dom.text b.t
 				Obs.observe !->
 					Dom.style
-						border: if lineWidth.get() is b.n then '4px solid grey' else 'none'
-						padding: if lineWidth.get() is b.n then 0 else 4
+						border: if lineWidthO.get() is b.n then '4px solid grey' else 'none'
+						padding: if lineWidthO.get() is b.n then 0 else 4
 				Dom.onTap !->
-					lineWidth.set b.n
+					lineWidthO.set b.n
 					addStep 'brush', { size: b.n }
 
 	# ------------ compose dom -------------
@@ -176,7 +192,7 @@ exports.render = !->
 		Dom.style
 			textAlign: 'center'
 			fontWeight: 'bold'
-		word = myWord.get()
+		word = myWordO.get()
 		if word
 			Dom.text tr("Draw %1 '%2'", word.prefix, word.word)
 		else
@@ -184,23 +200,43 @@ exports.render = !->
 
 	Dom.div !-> # timer
 		Dom.style
+			float: 'left'
 			position: 'absolute'
-			width: '40px'
-			height: '40px'
-			left: Page.width()/2-25+'px'
-			top: '50px'
-			zIndex: 10
+			width: '50px'
+			height: '50px'
+			top: '56px'
+			margin: '0 auto'
 			borderRadius: '50%'
-			Box: 'middle center'
+			zIndex: 99
+			left: Page.width()/2-25+'px'
+			opacity: '0.75'
+			pointerEvents: 'none' # don't be tappable
 		Obs.observe !->
 			remaining = DRAW_TIME - timeUsed.get()
-			Dom.style
-				background_: "linear-gradient(top, rgba(255,26,0,0) 0%, rgba(255,26,0,0)  #{100-remaining/DRAW_TIME*100}%, rgba(255,26,0,1) #{99-remaining/DRAW_TIME*100}%, rgba(255,26,0,1) 100%)"
-			if remaining < (DRAW_TIME/3)
-				r = 255
+			proc = 360/DRAW_TIME*remaining
+			if proc > 180
+				nextdeg = 90 - proc
+				Dom.style
+					backgroundImage: "linear-gradient(90deg, #0077CF 50%, transparent 50%, transparent), linear-gradient(#{nextdeg}deg, white 50%, #0077CF 50%, #0077CF)"
 			else
-				r = Math.round(255 * timeUsed.get() / (2*DRAW_TIME/3))
-			Dom.text (remaining * .001).toFixed(0)
+				nextdeg = -90 - (proc-180)
+				Dom.style
+					backgroundImage: "linear-gradient(#{nextdeg}deg, white 50%, transparent 50%, transparent), linear-gradient(270deg, white 50%, #0077CF 50%, #0077CF)"
+		Dom.div !->
+			Dom.style
+				position: 'absolute'
+				width: '30px'
+				height: '30px'
+				backgroundColor: 'white'
+				borderRadius: '50%'
+				marginLeft: '10px'
+				marginTop: '10px'
+				textAlign: 'center'
+				lineHeight: '30px'
+				fontSize: '16px'
+			Obs.observe !->
+				remaining = DRAW_TIME - timeUsed.get()
+				Dom.text (remaining * .001).toFixed(0)
 
 	cvs = false
 	Dom.div !->
@@ -209,12 +245,10 @@ exports.render = !->
 			margin: '0 auto'
 		size = 296
 		Obs.observe !-> # set size
-			# 296 * 360, ratio=1:1.126
 			width = Page.width()-24 # margin
 			height = Page.height()-16-40-80 # margin, top, shelf
 			size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
 			Dom.style width: size+'px', height: size*CANVAS_RATIO+'px'
-		log "canvas render size:", size
 		cvs = Canvas.render size, touchHandler # render canvas
 
 		Dom.div !->
@@ -224,7 +258,8 @@ exports.render = !->
 				top: '30%'
 				width: '100%'
 				fontSize: '90%'
-			word = myWord.get()
+				pointerEvents: 'none' # don't be tappable
+			word = myWordO.get()
 			return unless word
 			Ui.emptyText tr("Draw %1 '%2'", word.prefix, word.word)
 			Ui.emptyText tr("Timer will start when you start drawing");
@@ -235,7 +270,6 @@ exports.render = !->
 			Flex: true
 			height: '80px'
 			marginBottom: '4px'
-			# position: 'relative'
 		Dom.div !->
 			Dom.style Flex: true, height: '42px'
 			Dom.overflow()
@@ -244,8 +278,7 @@ exports.render = !->
 					Box: 'top'
 					width: 40*COLORS.length + 'px'
 					marginTop: '2px'
-				renderColorSelector color
-			# Obs.observe !-> addStep 'brush', {size: lineWidth.get()}
+				renderColorSelector()
 
 		Dom.div !->
 			Dom.style Box: 'top'
@@ -256,12 +289,42 @@ exports.render = !->
 					data: 'arrowrotl'
 					size: 20
 					color: 'white'
-					style: padding: '10px'
+					style: padding: '10px 8px'
 					onTap: !-> addStep 'undo'
 
 			Dom.div !->
 				Dom.style Flex: true, Box: 'top center'
-				renderBrushSelector lineWidth
+				renderBrushSelector()
+
+			Dom.div !-> # lighter
+				Dom.cls 'button-block'
+				t = tintO.get()
+				Icon.render
+					data: 'brightness'+(if t>0 then 1 else 2)
+					size: 20
+					color: 'white'
+					style: padding: '6px 8px 10px 6px'
+				Dom.style
+					border: if t>1 then '4px solid grey' else 'none'
+					padding: if t>1 then 0 else 4
+				Dom.onTap !->
+					if t < 2 then tintO.incr 1
+					addStep 'col', { col: getColor() }
+
+			Dom.div !-> # darker
+				Dom.cls 'button-block'
+				t = tintO.get()
+				Icon.render
+					data: 'brightness'+(if t>1 then 2 else 4)
+					size: 20
+					color: 'white'
+					style: padding: '6px 8px 10px 6px'
+				Dom.style
+					border: if t is 0 then '4px solid grey' else 'none'
+					padding: if t is 0 then 0 else 4
+				Dom.onTap !->
+					if tintO.peek() > 0 then tintO.incr -1
+					addStep 'col', { col: getColor() }
 
 			Dom.div !-> # clear button
 				Dom.cls 'button-block'
@@ -269,7 +332,7 @@ exports.render = !->
 					data: 'cancel'
 					size: 20
 					color: 'white'
-					style: padding: '10px'
+					style: padding: '10px 8px'
 					onTap: !-> addStep 'clear'
 
 

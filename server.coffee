@@ -1,53 +1,66 @@
 App = require 'app'
+Comments = require 'comments'
 Db = require 'db'
-WordLists = require 'wordLists'
-Letters = require 'letters'
+{tr} = require 'i18n'
 
 Config = require 'config'
+Letters = require 'letters'
+WordLists = require 'wordLists'
 
 exports.client_addDrawing = (id, steps, time) !->
 	personalDb = Db.personal App.memberId()
 	#return if (personalDb.get 'currentDrawing') isnt id
 
-	currentDrawing = personalDb.get 'currentDrawing'
+	currentDrawing = personalDb.get 'lastDrawing'
 	# finished drawing, so let's get it out of the personal db and into the shared!
 	Db.shared.set 'drawings', id,
-		userId: App.memberId()
+		memberId: App.memberId()
 		wordId: currentDrawing.wordId
 		steps: steps
 		time: time
 
-	personalDb.remove 'currentDrawing'
+	# notify
+	Comments.post
+		s: 'new'
+		pushText: App.userName() + " added a new drawing"
+		path: '/'
+
 
 exports.client_startDrawing = (cb) !->
 	personalDb = Db.personal App.memberId()
-	currentDrawing = personalDb.get 'currentDrawing'
+	lastDrawing = personalDb.get('lastDrawing')||false
 
-	if not currentDrawing
+	if !lastDrawing or lastDrawing.time+(Config.cooldown()) < Date.now()*.001 # first or at least 4 hours ago
 		wordList = WordLists.wordList()
 
-		word = wordList[166]
-		# word = wordList[Math.floor(Math.random() * wordList.length)]
+		# word = wordList[166] # debug pie
+		word = wordList[Math.floor(Math.random() * wordList.length)]
 
 		id = Db.shared.get('drawingCount')||0
 		Db.shared.incr 'drawingCount'
 
-		currentDrawing =
+		lastDrawing =
 			id: id
 			wordId: word[0]
 			word: word[1]
 			prefix: word[2]
-		Db.personal(App.memberId()).set 'currentDrawing', currentDrawing
+			time: Date.now()*.001
+		Db.personal(App.memberId()).set 'lastDrawing', lastDrawing
+		cb.reply lastDrawing
+	else
+		cb.reply false # no no no, you don't get to try again.
 
-	cb.reply currentDrawing
 
 exports.client_getLetters = (drawingId, cb) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-	log "getLetters from", drawingId, wordId
 	word = WordLists.wordList()[wordId][1]
-	log "getLetters word:", word
 
-	return null unless word
+	if Db.personal(App.memberId()).get drawingId # already started
+		cb.reply null
+		return null
+	unless word # we need a word
+		cb.reply null
+		return null
 
 	# write down when a user has started guessing
 	Db.personal(App.memberId()).set drawingId, Date.now()
@@ -71,15 +84,32 @@ exports.client_getLetters = (drawingId, cb) !->
 
 	cb.reply word, hash, scrambledLetters
 
-exports.client_submitAnswer = (drawingId, answer) !->
-	log "submitAnswer", drawingId
-	startTime = Db.personal(App.memberId()).get drawingId
+exports.client_submitAnswer = (drawingId, answer, time) !->
+	memberId = App.memberId()
+	log "submitAnswer by", memberId, ":", drawingId, answer, time
+	startTime = Db.personal(memberId).get drawingId
 	return if Date.now() < startTime # Timelords not allowed.
 	# We cannot set a timeframe, for the user might be without internet while guessing.
 
 	drawing = Db.shared.ref 'drawings', drawingId
 	word = WordLists.wordList()[drawing.get('wordId')][1]
 	if word is answer # correct!
-		# drawing.merge('members', {})
-		drawing.set('members', App.memberId(), true)
+		# set artist's score if we have the highest
+		best = true
+		drawing.iterate 'members', (member) !->
+			log "compare", time, "to", member.get()
+			best = false if time > member.get() and member.get()>=0 # skip -1 timings
+		if best
+			log "we're the best. so score:", drawing.get('memberId'), Config.timeToScore(time)
+			Db.shared.set 'scores', drawing.get('memberId'), drawingId, Config.timeToScore(time)
 
+		# write own time and score
+		drawing.merge('members', {}) # make sure path exists
+		drawing.set('members', memberId, time)
+		Db.shared.set 'scores', memberId, drawingId, Config.timeToScore(time)
+
+exports.client_submitForfeit = (drawingId) !->
+	memberId = App.memberId()
+	log "submitForfeit by", memberId, ":", drawingId
+	Db.shared.set 'drawings', drawingId, 'members', memberId, -1
+	Db.shared.set 'scores', memberId, drawingId, 0

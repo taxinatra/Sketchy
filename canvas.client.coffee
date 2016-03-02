@@ -1,7 +1,9 @@
 Dom = require 'dom'
 
-CANVAS_SIZE = 676
-CANVAS_RATIO = 1.283783784 # (296 * 380)
+Config = require 'config'
+
+CANVAS_SIZE = Config.canvasSize()
+CANVAS_RATIO = Config.canvasRatio()
 
 exports.render = (size, touchHandler) !->
 	scale = size/CANVAS_SIZE
@@ -44,10 +46,10 @@ exports.render = (size, touchHandler) !->
 				ctx.stroke()
 			when 'col'
 				ctx.strokeStyle = step.col
-				log "setting color: #{step.col}"
+				# log "setting color: #{step.col}"
 			when 'brush'
 				ctx.lineWidth = step.size
-				log "setting brush:", step
+				# log "setting brush:", step
 			when 'clear'
 				clear()
 				#log "clearing"
@@ -101,7 +103,7 @@ exports.render = (size, touchHandler) !->
 
 Dom.css
 	'.drawing-canvas':
-		backgroundColor: '#ddd'
+		backgroundColor: '#EEEDEA'
 		width: '100%'
 		height: '100%'
 		cursor: 'crosshair'
