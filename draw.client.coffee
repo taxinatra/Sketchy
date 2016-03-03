@@ -65,12 +65,20 @@ exports.render = !->
 		startTime.set Date.now()
 
 	submit = !->
-		time = Date.now()*.001
+		time = 0|Date.now()*.001
 
 		# TODO? upload the result as png
 
+		# convert steps to a more efficient format
+		# Type[1], value1[FF], value2[FF], value3[FF]
+		data = ""
+		for step in steps
+			line = Canvas.encode(step)
+			unless data is "" then line = ";" + line # perpend separator
+			data += line # and append
+
 		# tell the server we're done
-		Server.sync 'addDrawing', drawingId, steps, time, !->
+		Server.sync 'addDrawing', drawingId, data, time, !-> # steps for raw array of objects
 			Db.shared.set 'drawings', drawingId,
 				memberId: App.memberId()
 				wordId: myWordO.peek().id
@@ -83,7 +91,11 @@ exports.render = !->
 		step = {}
 		if data? then step = data
 		step.type = type
-		step.time = Date.now() - startTime.peek()
+		st = startTime.peek()
+		if st
+			step.time = Math.max(1, Date.now() - st)
+		else
+			step.time = 1 # step before starting to draw.
 		steps.push step
 
 		# draw this step on the canvas
@@ -91,8 +103,8 @@ exports.render = !->
 
 	toCanvasCoords = (pt) ->
 		{
-			x: Math.round((pt.x / size) * CANVAS_SIZE)
-			y: Math.round((pt.y / size) * CANVAS_SIZE)
+			x: Math.max 1, Math.min 999, Math.round (pt.x / size) * CANVAS_SIZE
+			y: Math.max 1, Math.min 999, Math.round (pt.y / size) * CANVAS_SIZE
 		}
 
 	drawPhase = 0 # 0:ready, 1: started, 2: moving
@@ -334,9 +346,6 @@ exports.render = !->
 					color: 'white'
 					style: padding: '10px 8px'
 					onTap: !-> addStep 'clear'
-
-
-
 
 # helper function (pythagoras)
 distanceBetween = (p1, p2) ->

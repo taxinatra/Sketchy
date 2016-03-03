@@ -133,7 +133,8 @@ exports.render = !->
 		setTimeout !->
 			steps = drawingR.get('steps')
 			return unless steps
+			steps = steps.split(';')
 			for step in steps then do (step) !->
-				cvs.addStep step
+				cvs.addStep Canvas.decode(step)
 			thisE.style display: 'block'
 		, 100

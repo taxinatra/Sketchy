@@ -107,3 +107,34 @@ Dom.css
 		width: '100%'
 		height: '100%'
 		cursor: 'crosshair'
+
+exports.encode = (step) ->
+	line = ""
+	# type
+	line += ['move', 'draw', 'dot', 'col', 'brush', 'clear', 'undo'].indexOf(step.type)
+	# value
+	if step.x then line += ("000" + Math.round(step.x)).substr(-3)
+	if step.y then line += ("000" + Math.round(step.y)).substr(-3)
+	if step.size then line += ("000000" + step.size).substr(-6)
+	if step.col then line += (""+step.col).substr(1) # skip the hash of colors
+	# time
+	line += ("00000" + step.time).substr(-5) # 5 chars is enough. we cannot have higher then DRAW_TIME
+	return line
+
+
+exports.decode = (data) ->
+	r = {} #TXXXYYYttttt
+	type = 0|data[0]
+	r.type = ['move', 'draw', 'dot', 'col', 'brush', 'clear', 'undo'][type] # first char
+	if r.type in ['move', 'draw', 'dot']
+		r.x = 0|data.substr(1,3)
+		r.y = 0|data.substr(4,3)
+	else if r.type is 'col'
+		r.col = '#' + data.substr(1,6)
+	else if r.type is 'brush'
+		r.size = 0|data.substr(1,6)
+	if type > 4 # not clear or undo
+		r.time = 0|data.substr(1,5)
+	else
+		r.time = 0|data.substr(7,5)
+	return r

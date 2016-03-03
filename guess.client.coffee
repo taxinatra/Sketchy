@@ -55,14 +55,13 @@ exports.render = !->
 
 	Obs.observe !->
 		if initializedO.get()
-			Page.setBackAction
-				icon: 'cancel'
-				tap: !->
-					Modal.confirm tr("Are you sure?"), tr("This is your only change to guess this drawing."), !->
-						Server.sync 'submitForfeit', drawingId, !->
-							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -1
-							Db.shared.set 'scores', App.memberId(), drawingId, 0
-						Page.up()
+			Page.setBackConfirm
+				title: tr("Are you sure?")
+				message: tr("This is your only change to guess this drawing.")
+				cb: !->
+					Server.sync 'submitForfeit', drawingId, !->
+						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -1
+						Db.shared.set 'scores', App.memberId(), drawingId, 0
 
 	drawingR = Db.shared.ref('drawings', drawingId)
 
@@ -154,7 +153,9 @@ exports.render = !->
 			startTime = Date.now()
 			steps = drawingR.get('steps')
 			return unless steps
-			for step in steps then do (step) !->
+			steps = steps.split(';')
+			for data in steps then do (data) !->
+				step = Canvas.decode(data)
 				now = Date.now() - startTime
 				if step.time > now
 					Obs.onTime (step.time - now), !->
