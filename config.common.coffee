@@ -2,7 +2,7 @@ exports.canvasRatio = -> 1.283783784 # (296 * 380)
 exports.canvasSize = -> 676
 exports.drawTime = -> 45000 # ms
 exports.guessTime = -> 50000 # ms
-exports.cooldown = -> 5#3600*4 # 4 hours in sec
+exports.cooldown = -> 3600*4 # 4 hours in sec
 
 exports.timeToScore = (time) ->
 	if time < 10 then return 10

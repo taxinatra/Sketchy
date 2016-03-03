@@ -1,6 +1,6 @@
-Example
-=======
-An example Group App for Happening.
+Pictionary
+==========
+Make others guess what you have drawn.
 
 What's Happening?
 -----------------
