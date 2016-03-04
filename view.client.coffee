@@ -37,8 +37,8 @@ exports.render = !->
 
 	overlay = (cb) !->
 		Dom.style
-			position: 'absolute'
-			top: 0
+			# position: 'absolute'
+			# top: 0
 			width: '100%'
 			height: '100%'
 			margin: 0
@@ -50,7 +50,7 @@ exports.render = !->
 
 	renderScoreScreen = !->	overlay !->
 		myTime = drawingR.get('members', App.memberId())
-		Dom.style Box: 'vertical center', textAlign: 'center', zIndex: 99
+		Dom.style Box: 'vertical center', textAlign: 'center'
 
 		state = 0
 		Dom.div !->
@@ -76,7 +76,7 @@ exports.render = !->
 						myTime)
 				else # failed to guess
 					state = 1
-					Dom.h1 tr("Shame")
+					Dom.h1 tr("Too bad")
 					Dom.text tr("You have not guessed it correctly.")
 					Dom.br()
 					Dom.br()
@@ -107,7 +107,7 @@ exports.render = !->
 				Dom.text if points>1 then tr("points") else tr("point")
 			Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 		Dom.div !->
-			Dom.style Flex: true, textAlign: 'left', width:'100%'
+			Dom.style Flex: true, textAlign: 'left', width:'100%', margin: 0
 			drawingR.iterate 'members', (member) !->
 				Ui.item
 					prefix: !-> renderPoints(Db.shared.get('scores', member.key(), drawingId)||0, 40, {marginRight:'12px'})
@@ -131,19 +131,26 @@ exports.render = !->
 		Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 
 	# --- compose DOM ---
-	Dom.div !->
-		renderScoreScreen()
+
+	Dom.style height: '100%', overflow: 'hidden'
 
 	Dom.div !->
-		width = Page.width()
-		height = Page.height()
-		size = if height>(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
-		Dom.style
-			width: '100%'
-			height: '100%'
-			margin: 0
-			overflow: 'hidden'
-			display: 'none'
+		Obs.observe !->
+			width = Page.width()
+			height = Page.height()
+			size = if height>(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
+			widthMargin = Math.max 0, (size-width)/2
+			heightMargin = Math.max 0, (size*CANVAS_RATIO-height)/2
+			log size, size*CANVAS_RATIO,':', width, height, widthMargin, heightMargin
+			Dom.style
+				position: 'absolute'
+				top: -heightMargin+'px'
+				left: -widthMargin+'px'
+				width: size
+				height: size*CANVAS_RATIO
+				# if you wonder why '100%' isn't used: android <4.4 doesn't like it.
+				margin: 0
+				overflow: 'hidden'
 		cvs = Canvas.render null # render canvas
 		thisE = Dom.get()
 
@@ -151,8 +158,22 @@ exports.render = !->
 		setTimeout !->
 			steps = drawingR.get('steps')
 			return unless steps
+			startTime = Date.now()
 			steps = steps.split(';')
-			for step in steps then do (step) !->
-				cvs.addStep Canvas.decode(step)
-			thisE.style display: 'block'
-		, 100
+			for data in steps then do (data) !->
+				step = Canvas.decode(data)
+				now = (Date.now() - startTime)
+				# speed times 8!
+				if step.time/8 > now
+					Obs.onTime (step.time/8 - now), !->
+						cvs.addStep step
+				else
+					cvs.addStep step
+		, 0
+
+	Dom.div !->
+		Dom.overflow()
+		Dom.style
+			_transform: "translateY(#{'0px'})" # need to make this a hardware layer. or zIndex doesn't work
+			height: '100%'
+		renderScoreScreen()
