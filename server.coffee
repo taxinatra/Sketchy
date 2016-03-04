@@ -93,11 +93,10 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 
 	drawing = Db.shared.ref 'drawings', drawingId
 	word = WordLists.wordList()[drawing.get('wordId')][1]
-	if word is answer # correct!
+	if word.replace(/\s/g,'') is answer.replace(/\s/g,'') # correct!
 		# set artist's score if we have the highest
 		best = true
 		drawing.iterate 'members', (member) !->
-			log "compare", time, "to", member.get()
 			best = false if time > member.get() and member.get()>=0 # skip -1 timings
 		if best
 			log "we're the best. so score:", drawing.get('memberId'), Config.timeToScore(time)
@@ -107,6 +106,8 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		drawing.merge('members', {}) # make sure path exists
 		drawing.set('members', memberId, time)
 		Db.shared.set 'scores', memberId, drawingId, Config.timeToScore(time)
+	else
+		log "answer was not correct",  word.replace(/\s/g,''), 'vs', answer.replace(/\s/g, '')
 
 exports.client_submitForfeit = (drawingId) !->
 	memberId = App.memberId()
