@@ -91,11 +91,8 @@ exports.client_getLetters = (drawingId, cb) !->
 
 	count = 0
 	scrambledLetters = {}
-	while letters.length
-		index = Math.floor(Math.random() * letters.length)
-		scrambledLetters[count] = letters.splice index, 1
-		count++
-	scrambledLetters.count = count
+	scrambledLetters[i] = letter for letter, i in letters.sort()
+	scrambledLetters.count = letters.length
 
 	# We won't send the word, but an array of word lengths and a hash of it
 	hash = Config.simpleHash(word.replace(/\s/g,''))
