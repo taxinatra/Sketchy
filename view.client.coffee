@@ -126,7 +126,7 @@ exports.render = !->
 			margin: 0
 			overflow: 'hidden'
 			display: 'none'
-		cvs = Canvas.render size, null # render canvas
+		cvs = Canvas.render null # render canvas
 		thisE = Dom.get()
 
 		# draw the image slightly delayed so the main render doesn't wait for it

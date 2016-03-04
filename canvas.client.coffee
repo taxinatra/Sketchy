@@ -5,8 +5,7 @@ Config = require 'config'
 CANVAS_SIZE = Config.canvasSize()
 CANVAS_RATIO = Config.canvasRatio()
 
-exports.render = (size, touchHandler) !->
-	scale = size/CANVAS_SIZE
+exports.render = (touchHandler) !->
 	width = CANVAS_SIZE
 	height = CANVAS_SIZE*CANVAS_RATIO
 	steps = []

@@ -11,6 +11,7 @@ Ui = require 'ui'
 {tr} = require 'i18n'
 
 Config = require 'config'
+Timer = require 'timer'
 
 CANVAS_RATIO = Config.canvasRatio()
 GUESS_TIME = Config.guessTime()
@@ -65,7 +66,7 @@ exports.render = !->
 
 	drawingR = Db.shared.ref('drawings', drawingId)
 
-	Dom.style minHeight: '100%'
+	Dom.style backgroundColor: '#EEEDEA', height: '100%', Box: 'vertical'
 
 	overlay = (cb) !->
 		Dom.style
@@ -82,45 +83,7 @@ exports.render = !->
 
 	Obs.observe !->
 		if initializedO.get()
-			Dom.div !-> # timer
-				Dom.style
-					float: 'left'
-					position: 'absolute'
-					width: '50px'
-					height: '50px'
-					top: '26px'
-					margin: '0 auto'
-					borderRadius: '50%'
-					zIndex: 99
-					left: Page.width()/2-25+'px'
-					opacity: '0.75'
-					pointerEvents: 'none' # don't be tappable
-				Obs.observe !->
-					remaining = GUESS_TIME - timeUsedO.get()
-					proc = 360/GUESS_TIME*remaining
-					if proc > 180
-						nextdeg = 90 - proc
-						Dom.style
-							backgroundImage: "linear-gradient(90deg, #0077CF 50%, transparent 50%, transparent), linear-gradient(#{nextdeg}deg, white 50%, #0077CF 50%, #0077CF)"
-					else
-						nextdeg = -90 - (proc-180)
-						Dom.style
-							backgroundImage: "linear-gradient(#{nextdeg}deg, white 50%, transparent 50%, transparent), linear-gradient(270deg, white 50%, #0077CF 50%, #0077CF)"
-				Dom.div !->
-					Dom.style
-						position: 'absolute'
-						width: '30px'
-						height: '30px'
-						backgroundColor: 'white'
-						borderRadius: '50%'
-						marginLeft: '10px'
-						marginTop: '10px'
-						textAlign: 'center'
-						lineHeight: '30px'
-						fontSize: '16px'
-					Obs.observe !->
-						remaining = GUESS_TIME - timeUsedO.get()
-						Dom.text (remaining * .001).toFixed(0)
+			Timer.render GUESS_TIME, timeUsedO
 
 			cvs = null
 
@@ -128,13 +91,21 @@ exports.render = !->
 				Dom.style
 					position: 'relative'
 					margin: '0 auto'
+					Flex: true
+					overflow: 'hidden'
 				size = 296
-				Obs.observe !-> # set size
-					width = Page.width()-24 # margin
-					height = Page.height()-5-156 # margin, guessing
-					size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
-					Dom.style width: size+'px', height: size*CANVAS_RATIO+'px'
-				cvs = Canvas.render size, null # render canvas
+				containerE = Dom.get()
+				Obs.observe !->
+					# observe window size
+					Page.width()
+					Page.height()
+					Obs.nextTick !-> # set size
+						width = containerE.width()
+						height = containerE.height()
+						size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
+						log "nextTick size:", width, height, size
+						containerE.style width: size+'px', height: size*CANVAS_RATIO+'px'
+				cvs = Canvas.render null # render canvas
 
 				Obs.observe !->
 					return unless incorrectO.get()

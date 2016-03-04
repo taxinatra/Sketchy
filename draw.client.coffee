@@ -11,6 +11,7 @@ Ui = require 'ui'
 {tr} = require 'i18n'
 
 Config = require 'config'
+Timer = require 'timer'
 
 # COLORS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
 # use deciHexi only!
@@ -197,58 +198,23 @@ exports.render = !->
 					addStep 'brush', { size: b.n }
 
 	# ------------ compose dom -------------
-
 	Dom.style backgroundColor: '#666', height: '100%'
 
 	Ui.top !->
 		Dom.style
+			backgroundColor: '#666'
+			color: 'white'
 			textAlign: 'center'
 			fontWeight: 'bold'
+			margin: 0
+			border: 0
 		word = myWordO.get()
 		if word
 			Dom.text tr("Draw %1 '%2'", word.prefix, word.word)
 		else
 			Dom.text "_" # prevent resizing when word has been retrieved
 
-	Dom.div !-> # timer
-		Dom.style
-			float: 'left'
-			position: 'absolute'
-			width: '50px'
-			height: '50px'
-			top: '56px'
-			margin: '0 auto'
-			borderRadius: '50%'
-			zIndex: 99
-			left: Page.width()/2-25+'px'
-			opacity: '0.75'
-			pointerEvents: 'none' # don't be tappable
-		Obs.observe !->
-			remaining = DRAW_TIME - timeUsed.get()
-			proc = 360/DRAW_TIME*remaining
-			if proc > 180
-				nextdeg = 90 - proc
-				Dom.style
-					backgroundImage: "linear-gradient(90deg, #0077CF 50%, transparent 50%, transparent), linear-gradient(#{nextdeg}deg, white 50%, #0077CF 50%, #0077CF)"
-			else
-				nextdeg = -90 - (proc-180)
-				Dom.style
-					backgroundImage: "linear-gradient(#{nextdeg}deg, white 50%, transparent 50%, transparent), linear-gradient(270deg, white 50%, #0077CF 50%, #0077CF)"
-		Dom.div !->
-			Dom.style
-				position: 'absolute'
-				width: '30px'
-				height: '30px'
-				backgroundColor: 'white'
-				borderRadius: '50%'
-				marginLeft: '10px'
-				marginTop: '10px'
-				textAlign: 'center'
-				lineHeight: '30px'
-				fontSize: '16px'
-			Obs.observe !->
-				remaining = DRAW_TIME - timeUsed.get()
-				Dom.text (remaining * .001).toFixed(0)
+	Timer.render DRAW_TIME, timeUsed, 44
 
 	cvs = false
 	Dom.div !->
@@ -257,11 +223,11 @@ exports.render = !->
 			margin: '0 auto'
 		size = 296
 		Obs.observe !-> # set size
-			width = Page.width()-24 # margin
-			height = Page.height()-16-40-80 # margin, top, shelf
+			width = Page.width()
+			height = Page.height()-3-40-80 # margin, top, shelf
 			size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
 			Dom.style width: size+'px', height: size*CANVAS_RATIO+'px'
-		cvs = Canvas.render size, touchHandler # render canvas
+		cvs = Canvas.render touchHandler # render canvas
 
 		Dom.div !->
 			return if startTime.get()
@@ -281,14 +247,16 @@ exports.render = !->
 		Dom.style
 			Flex: true
 			height: '80px'
-			marginBottom: '4px'
+			margin: 0
+			paddingBottom: '4px'
+			background: '#666'
 		Dom.div !->
 			Dom.style Flex: true, height: '42px'
 			Dom.overflow()
 			Dom.div !->
 				Dom.style
-					Box: 'top'
-					width: 40*COLORS.length + 'px'
+					Box: 'top center'
+					minWidth: 40*COLORS.length + 'px'
 					marginTop: '2px'
 				renderColorSelector()
 
