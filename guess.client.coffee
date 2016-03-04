@@ -2,6 +2,7 @@ App = require 'app'
 Canvas = require 'canvas'
 Db = require 'db'
 Dom = require 'dom'
+Icon = require 'icon'
 Modal = require 'modal'
 Obs = require 'obs'
 Page = require 'page'
@@ -45,12 +46,12 @@ exports.render = !->
 
 		Obs.onTime GUESS_TIME, !->
 			log "guesstimer expired"
-			if Db.shared.peek('drawings', drawingId, 'members', App.memberId())
+			if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
 				log "already submitted."
 				return
 			log "Forfeit by timer"
 			Server.sync 'submitForfeit', drawingId, !->
-				Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -1
+				Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 				Db.shared.set 'scores', App.memberId(), drawingId, 0
 			Page.nav {0:'view', '?drawing':drawingId}
 
@@ -58,10 +59,10 @@ exports.render = !->
 		if initializedO.get()
 			Page.setBackConfirm
 				title: tr("Are you sure?")
-				message: tr("This is your only change to guess this drawing.")
+				message: tr("This is your only chance to guess this drawing.")
 				cb: !->
 					Server.sync 'submitForfeit', drawingId, !->
-						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -1
+						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 						Db.shared.set 'scores', App.memberId(), drawingId, 0
 
 	drawingR = Db.shared.ref('drawings', drawingId)
@@ -154,20 +155,32 @@ exports.render = !->
 				else
 					incorrectO.set false
 
-			renderGuessing chosenLettersO, lettersO
+			Dom.div !->
+				Dom.style background: '#666', margin: 0
+				Icon.render
+					data: 'backspace'
+					color: 'white'
+					style:
+						float: 'right'
+						margin: '2px'
+					onTap: !->
+						log "clear!"
+						for i in [0...chosenLettersO.get('count')] then do (i) !->
+							moveTile chosenLettersO, lettersO, i
 
+				renderGuessing chosenLettersO, lettersO
 		else
 			Ui.emptyText tr("Loading ...")
 
-	renderGuessing = (chosenLettersO, remainingLettersO) !->
-		moveTile = (from, to, curIndex) !->
-			# find next empty spot
-			for i in [0...to.get('count')]
-				if not to.get(i)?
-					to.set i, from.get(curIndex)
-					from.set curIndex, null
-					break
+	moveTile = (from, to, curIndex) !->
+		# find next empty spot
+		for i in [0...to.get('count')]
+			if not to.get(i)?
+				to.set i, from.get(curIndex)
+				from.set curIndex, null
+				break
 
+	renderGuessing = (chosenLettersO, remainingLettersO) !->
 		renderTiles = (fromO, toO, format=false) !->	Dom.div !->
 			Dom.style
 				textAlign: 'center'
@@ -220,6 +233,7 @@ Dom.css
 		border: '1px solid grey'
 		verticalAlign: 'middle'
 		fontSize: '30px'
+		textTransform: 'uppercase'
 
 	'.tile.empty':
 		background: 'white'

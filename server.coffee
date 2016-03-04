@@ -99,10 +99,10 @@ exports.client_getLetters = (drawingId, cb) !->
 
 	# We won't send the word, but an array of word lengths and a hash of it
 	hash = Config.simpleHash(word.replace(/\s/g,''))
-	word = (i.length for i in word.split(" "))
+	fields = (i.length for i in word.split(" "))
 
 
-	cb.reply word, hash, scrambledLetters
+	cb.reply fields, hash, scrambledLetters
 
 exports.client_submitAnswer = (drawingId, answer, time) !->
 	memberId = App.memberId()
@@ -134,3 +134,8 @@ exports.client_submitForfeit = (drawingId) !->
 	log "submitForfeit by", memberId, ":", drawingId
 	Db.shared.set 'drawings', drawingId, 'members', memberId, -2
 	Db.shared.set 'scores', memberId, drawingId, 0
+
+exports.client_getWord = (drawingId, cb) !->
+	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
+	word = WordLists.wordList()[wordId][1]
+	cb.reply word

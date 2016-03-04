@@ -38,11 +38,13 @@ renderOverview = !->
 					Page.nav 'draw'
 		else
 			Ui.item
-				icon: 'add'
+				icon:'chronometer'
+				color: '#999'
 				content: !->
 					Dom.text tr("Wait ")
 					Time.deltaText t, 'duration'
 				sub: tr("Before you can draw again")
+				style: color: '#999'
 
 	Db.shared.iterate 'drawings', (drawing) !->
 		memberId = drawing.get('memberId')

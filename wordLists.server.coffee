@@ -100,7 +100,7 @@ exports.wordList = ->
 		[96, "mushroom", "a"],
 		[97, "toe", "a"],
 		[98, "pretzel", "a"],
-		[99, "TV", "a"],
+		[99, "tv", "a"],
 		[100, "quilt", ""],
 		[101, "chalk", "a"],
 		[102, "dollar", "a"],

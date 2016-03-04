@@ -77,7 +77,21 @@ exports.render = !->
 				else # failed to guess
 					state = 1
 					Dom.h1 tr("Shame")
-					Dom.text tr("You have not guessed it correctly")
+					Dom.text tr("You have not guessed it correctly.")
+					Dom.br()
+					Dom.br()
+					Dom.text tr("The correct answer was:")
+
+					wordO = Obs.create false
+					Obs.observe !->
+						if word = wordO.get()
+							Dom.h2 !->
+								Dom.style fontSize: '28px', textTransform: 'uppercase'
+								Dom.text word
+					Server.call "getWord", drawingId, (word) !->
+						log "got word"
+						wordO.set word
+
 		return if state is 0 # lack of goto :p
 		Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 		if state is 2
