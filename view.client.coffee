@@ -109,6 +109,7 @@ exports.render = !->
 		Dom.div !->
 			Dom.style Flex: true, textAlign: 'left', width:'100%', margin: 0
 			drawingR.iterate 'members', (member) !->
+				return if member.get() is -1 # skip members who are currently guessing
 				Ui.item
 					prefix: !-> renderPoints(Db.shared.get('scores', member.key(), drawingId)||0, 40, {marginRight:'12px'})
 					avatar: App.memberAvatar(member.key())

@@ -114,7 +114,7 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		# set artist's score if we have the highest
 		best = true
 		drawing.iterate 'members', (member) !->
-			best = false if time > member.get() and member.get()>=0 # skip -1 timings
+			best = false if time > member.get() and member.get()>=0 # skip -1/-2 timings
 		if best
 			log "we're the best. so score:", drawing.get('memberId'), Config.timeToScore(time)
 			Db.shared.set 'scores', drawing.get('memberId'), drawingId, Config.timeToScore(time)
