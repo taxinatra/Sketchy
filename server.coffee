@@ -7,6 +7,21 @@ Config = require 'config'
 Letters = require 'letters'
 WordLists = require 'wordLists'
 
+# Storage overview
+# Personal:
+#	<drawingId>: <time guessed>
+
+# Shared:
+#	<drawingId>:
+#		Stuff about time and author
+#		steps: <data in string>
+#		members:
+#			<memberId>: <time they needed to guess in sec>
+
+#	scores:
+#		<memberId>:
+#			<drawingId>: <score>
+
 exports.client_addDrawing = (id, steps, time) !->
 	personalDb = Db.personal App.memberId()
 	#return if (personalDb.get 'currentDrawing') isnt id
@@ -54,8 +69,9 @@ exports.client_startDrawing = (cb) !->
 exports.client_getLetters = (drawingId, cb) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
 	word = WordLists.wordList()[wordId][1]
+	memberId = App.memberId()
 
-	if Db.personal(App.memberId()).get drawingId # already started
+	if Db.personal(memberId).get drawingId # already started
 		cb.reply null
 		return null
 	unless word # we need a word
@@ -63,7 +79,10 @@ exports.client_getLetters = (drawingId, cb) !->
 		return null
 
 	# write down when a user has started guessing
-	Db.personal(App.memberId()).set drawingId, Date.now()
+	Db.personal(memberId).set drawingId, Date.now()
+	# set failed score. You can better this by providing the correct answer :)
+	Db.shared.set 'drawings', drawingId, 'members', memberId, -1
+	Db.shared.set 'scores', memberId, drawingId, 0
 
 	# some random letters
 	letters = Letters.getRandom Math.min(8, Math.max(5, word.length))
@@ -81,6 +100,7 @@ exports.client_getLetters = (drawingId, cb) !->
 	# We won't send the word, but an array of word lengths and a hash of it
 	hash = Config.simpleHash(word.replace(/\s/g,''))
 	word = (i.length for i in word.split(" "))
+
 
 	cb.reply word, hash, scrambledLetters
 
@@ -112,5 +132,5 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 exports.client_submitForfeit = (drawingId) !->
 	memberId = App.memberId()
 	log "submitForfeit by", memberId, ":", drawingId
-	Db.shared.set 'drawings', drawingId, 'members', memberId, -1
+	Db.shared.set 'drawings', drawingId, 'members', memberId, -2
 	Db.shared.set 'scores', memberId, drawingId, 0
