@@ -136,6 +136,9 @@ exports.client_submitForfeit = (drawingId) !->
 	Db.shared.set 'scores', memberId, drawingId, 0
 
 exports.client_getWord = (drawingId, cb) !->
-	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-	word = WordLists.wordList()[wordId][1]
-	cb.reply word
+	if Db.shared.get 'drawings', drawingId, 'members', App.memberId()
+		wordId = Db.shared.get 'drawings', drawingId, 'wordId'
+		word = WordLists.wordList()[wordId][1]
+		cb.reply word
+	else # you haven't even guessed! no word for you.
+		cb.reply false

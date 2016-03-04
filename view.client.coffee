@@ -83,14 +83,18 @@ exports.render = !->
 					Dom.text tr("The correct answer was:")
 
 					wordO = Obs.create false
-					Obs.observe !->
+					Dom.h2 !->
 						if word = wordO.get()
-							Dom.h2 !->
-								Dom.style fontSize: '28px', textTransform: 'uppercase'
-								Dom.text word
+							Dom.style fontSize: '28px', textTransform: 'uppercase'
+							Dom.text word
+						else
+							Dom.style height: '49px'
 					Server.call "getWord", drawingId, (word) !->
-						log "got word"
-						wordO.set word
+						if word
+							log "got word"
+							wordO.set word
+						else
+							log "You haven't guessed this question, but requested the answer. Be nice."
 
 		return if state is 0 # lack of goto :p
 		Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
