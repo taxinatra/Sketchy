@@ -191,34 +191,40 @@ exports.render = !->
 						Dom.style
 							display: 'inline-block'
 							margin: "0 6px"
-						for j in [0...i]
+						for j in [0...i] then do (l, j) !->
 							Dom.div !->
-								k = l+j
 								Dom.addClass 'tile'
-								Obs.observe !->
-									if fromO.get(k)
-										Dom.addClass 'letter'
-										Dom.removeClass 'empty'
-										Dom.text fromO.get(k)
-										Dom.onTap !-> moveTile fromO, toO, k
-									else
-										Dom.addClass 'empty'
-										Dom.removeClass 'letter'
-										Dom.text '-'
+								k = l+j
+								letter = fromO.get(k)
+								if letter then Dom.onTap !-> moveTile fromO, toO, k
+								Dom.div !->
+									Dom.addClass 'tileContent'
+									Obs.observe !->
+										if letter
+											Dom.addClass 'letter'
+											Dom.removeClass 'empty'
+											Dom.text fromO.get(k)
+										else
+											Dom.addClass 'empty'
+											Dom.removeClass 'letter'
+											Dom.text '-'
 						l+=i
 			else
 				for i in [0...fromO.get('count')] then do (i) !->
 					Dom.div !->
 						Dom.addClass 'tile'
-						if not fromO.get(i)?
-							Dom.addClass 'empty'
-							Dom.removeClass 'letter'
-							Dom.text ' '
-						else
-							Dom.addClass 'letter'
-							Dom.removeClass 'empty'
-							Dom.text fromO.get(i)
-							Dom.onTap !-> moveTile fromO, toO, i
+						letter = fromO.get(i)
+						if letter then Dom.onTap !-> moveTile fromO, toO, i
+						Dom.div !->
+							Dom.addClass 'tileContent'
+							if letter
+								Dom.addClass 'letter'
+								Dom.removeClass 'empty'
+								Dom.text fromO.get(i)
+							else
+								Dom.addClass 'empty'
+								Dom.removeClass 'letter'
+								Dom.userText "&nbsp;"
 
 		renderTiles chosenLettersO, remainingLettersO, true
 		renderTiles remainingLettersO, chosenLettersO, false
@@ -226,20 +232,21 @@ exports.render = !->
 Dom.css
 	'.tile':
 		display: 'inline-block'
+		padding: '5px'
+
+	'.tileContent':
 		width: '40px'
-		margin: '5px'
 		height: '40px'
 		borderRadius: '3px'
 		border: '1px solid grey'
-		verticalAlign: 'middle'
 		fontSize: '30px'
 		textTransform: 'uppercase'
-
-	'.tile.empty':
-		background: 'white'
-
-	'.tile.letter':
-		background: 'beige'
+		boxShadow: 'black 1px 1px'
 		color: 'grey'
 		textAlign: 'center'
-		boxShadow: 'black 1px 1px'
+
+	'.tileContent.empty':
+		background: 'white'
+
+	'.tileContent.letter':
+		background: 'beige'
