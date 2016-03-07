@@ -59,7 +59,12 @@ renderOverview = !->
 
 		if memberId is yourId # own drawing
 			mem = drawing.get('members')
-			item.content = tr("Your drawing")
+			what = Db.personal.get('words', drawing.key())||false
+			if what
+				item.content = !->
+					Dom.userText tr("Your drawing of **%1**", what)
+			else
+				item.content = tr("Your drawing")
 			if mem
 				item.sub = !->
 					Dom.text tr("Guessed by ")
@@ -69,15 +74,21 @@ renderOverview = !->
 			else
 				item.sub = !->
 					Dom.text tr("Guessed by no one yet")
-		else if state?
-			item.content = tr("Drawing by %1", if memberId is yourId then tr("you") else App.memberName(memberId))
+		else if state? # you've guessed it
+			log "trying to get word:", drawing.key()
+			what = Db.personal.get('words', drawing.key())||false
+			if what
+				item.content = !->
+					Dom.userText tr("%1 drew **%2**", App.memberName(memberId), what)
+			else
+				item.content = tr("Drawing by %1", App.memberName(memberId))
 			if state >= 0
 				item.sub = tr("Guessed by you in %1 second|s", state)
 			else
 				item.sub = tr("Failed to guess")
 			item.afterIcon = !->
 					View.renderPoints(Db.shared.get('scores', yourId, drawing.key()), 40)
-		else # no state
+		else # no state, so not guessed yet
 			item.content = tr("Guess drawing by %1", App.memberName(memberId))
 			item.sub= !->
 				Dom.text "Drawn "

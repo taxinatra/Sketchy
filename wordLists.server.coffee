@@ -20,6 +20,9 @@ exports.getWord = (id, process = true) ->
 		word = word.toLowerCase() # force lower case
 	return word
 
+exports.getPrefix = (id) ->
+	return wordList[id][2]
+
 exports.getFields = (id) ->
 	word = wordList[id][1] # get word
 	return (i.length for i in word.split(" "))
@@ -80,7 +83,7 @@ wordList = [
 	[50, "shallow", "", 1, true],
 	[51, "toast", "a", 1, true],
 	[52, "outside", "", 1, true],
-	[53, "america", "", 1, true],
+	[53, "America", "", 1, true],
 	[54, "man", "a", 1, true],
 	[55, "bowtie", "a", 1, true],
 	[56, "half", "", 1, true],

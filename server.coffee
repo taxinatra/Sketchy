@@ -22,6 +22,26 @@ WordList = require 'wordLists'
 #		<memberId>:
 #			<drawingId>: <score>
 
+exports.onUpgrade = !->
+	log 'updating'
+	for member in App.memberIds()
+		log "updating", member
+		log JSON.stringify Db.personal(member).get()
+		for drawingId, v of Db.personal(member).get()
+			if drawingId is 'lastDrawing' or drawingId is 'words'
+				log "skipping", drawingId
+			else
+				addWordToPersonal member, drawingId
+
+addWordToPersonal = (memberId, drawingId) !->
+	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
+	log "hopefully setting", memberId, drawingId, wordId
+	word = WordList.getWord wordId, false
+	prefix = WordList.getPrefix(wordId)
+	value = if prefix then prefix + " " + word else word
+	Db.personal(memberId).set('words', drawingId, value)
+	log "setting:", memberId, drawingId, drawingId, value
+
 exports.client_addDrawing = (id, steps, time) !->
 	personalDb = Db.personal App.memberId()
 	#return if (personalDb.get 'currentDrawing') isnt id
@@ -33,6 +53,8 @@ exports.client_addDrawing = (id, steps, time) !->
 		wordId: currentDrawing.wordId
 		steps: steps
 		time: time
+
+	addWordToPersonal App.memberId(), id
 
 	# notify
 	Comments.post
@@ -102,7 +124,8 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 	# We cannot set a timeframe, for the user might be without internet while guessing.
 
 	drawing = Db.shared.ref 'drawings', drawingId
-	word = WordList.getWord drawing.get('wordId')
+	wordId = drawing.get('wordId')
+	word = WordList.getWord wordId
 	if word is answer.replace(/\s/g,'') # correct!
 		# set artist's score if we have the highest
 		best = true
@@ -117,14 +140,17 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		drawing.merge('members', {}) # make sure path exists
 		drawing.set('members', memberId, time)
 		Db.shared.set 'scores', memberId, drawingId, Config.timeToScore(time)
+		addWordToPersonal memberId, drawingId
 	else
 		log "answer was not correct",  word, 'vs', answer.replace(/\s/g, '')
+		submitForfeit (drawingId)
 
-exports.client_submitForfeit = (drawingId) !->
+exports.client_submitForfeit = submitForfeit = (drawingId) !->
 	memberId = App.memberId()
 	log "submitForfeit by", memberId, ":", drawingId
 	Db.shared.set 'drawings', drawingId, 'members', memberId, -2
 	Db.shared.set 'scores', memberId, drawingId, 0
+	addWordToPersonal memberId, drawingId
 
 exports.client_getWord = (drawingId, cb) !->
 	if Db.shared.get 'drawings', drawingId, 'members', App.memberId()
