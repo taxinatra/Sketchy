@@ -57,9 +57,11 @@ exports.render = !->
 			if drawingR.get('memberId') is App.memberId() # my drawing
 				Dom.h1 tr("Your drawing")
 				arr = (v for k, v of drawingR.get('members'))
-				lowestTime = Math.min.apply(null, arr)||-1
+				lowestTime = 99
+				for i in arr
+					if (i<lowestTime and i>=0) then lowestTime = i
 				if arr.length
-					if lowestTime <0
+					if lowestTime is 99
 						Dom.text tr("has not been successfully guessed yet")
 						state = 1
 					else
@@ -101,7 +103,7 @@ exports.render = !->
 			Dom.div !->
 				Dom.style Box: 'vertical center', minHeight: '116px'
 				Dom.text tr("This earned you")
-				points = Config.timeToScore(myTime)
+				points = Db.shared.get('scores', App.memberId(), drawingId)||0
 				renderPoints(points, 60, {margin:'12px 12px 4px'}) # points, size, style
 				Dom.text if points>1 then tr("points") else tr("point")
 			Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill

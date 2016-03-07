@@ -107,6 +107,7 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		# set artist's score if we have the highest
 		best = true
 		drawing.iterate 'members', (member) !->
+			# log "comparing my", time, "to", member.get(), ":", (time > member.get() and member.get()>=0)
 			best = false if time > member.get() and member.get()>=0 # skip -1/-2 timings
 		if best
 			log "we're the best. so score:", drawing.get('memberId'), Config.timeToScore(time)
