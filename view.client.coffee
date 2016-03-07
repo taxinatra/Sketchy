@@ -72,7 +72,7 @@ exports.render = !->
 				if myTime >= 0
 					state = 2
 					Dom.h1 tr("Nice!")
-					Dom.text tr("You guessed it correctly in %1 seconds!", 
+					Dom.text tr("It took you %1 seconds to guess:", 
 						myTime)
 				else # failed to guess
 					state = 1
@@ -82,19 +82,18 @@ exports.render = !->
 					Dom.br()
 					Dom.text tr("The correct answer was:")
 
-					wordO = Obs.create false
-					Dom.h2 !->
-						if word = wordO.get()
-							Dom.style fontSize: '28px', textTransform: 'uppercase'
-							Dom.text word
-						else
-							Dom.style height: '49px'
-					Server.call "getWord", drawingId, (word) !->
-						if word
-							log "got word"
-							wordO.set word
-						else
-							log "You haven't guessed this question, but requested the answer. Be nice."
+				wordO = Obs.create false
+				Dom.h2 !->
+					if word = wordO.get()
+						Dom.style fontSize: '28px', textTransform: 'uppercase'
+						Dom.text word
+					else
+						Dom.style height: '49px'
+				Server.call "getWord", drawingId, (word) !->
+					if word
+						wordO.set word
+					else
+						log "You haven't guessed this question, but requested the answer. That's not very nice."
 
 		return if state is 0 # lack of goto :p
 		Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill

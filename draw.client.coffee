@@ -82,7 +82,7 @@ exports.render = !->
 		Server.sync 'addDrawing', drawingId, data, time, !-> # steps for raw array of objects
 			Db.shared.set 'drawings', drawingId,
 				memberId: App.memberId()
-				wordId: myWordO.peek().id
+				wordId: myWordO.peek().wordId
 				steps: steps
 				time: time
 		Page.up()

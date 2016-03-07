@@ -5,7 +5,7 @@ Db = require 'db'
 
 Config = require 'config'
 Letters = require 'letters'
-WordLists = require 'wordLists'
+WordList = require 'wordLists'
 
 # Storage overview
 # Personal:
@@ -46,20 +46,14 @@ exports.client_startDrawing = (cb) !->
 	lastDrawing = personalDb.get('lastDrawing')||false
 
 	if !lastDrawing or lastDrawing.time+(Config.cooldown()) < Date.now()*.001 # first or at least 4 hours ago
-		wordList = WordLists.wordList()
 
-		# word = wordList[166] # debug pie
-		word = wordList[Math.floor(Math.random() * wordList.length)]
-
+		wordObj = WordList.getObject null, false
 		id = Db.shared.get('drawingCount')||0
 		Db.shared.incr 'drawingCount'
 
-		lastDrawing =
-			id: id
-			wordId: word[0]
-			word: word[1]
-			prefix: word[2]
-			time: Date.now()*.001
+		lastDrawing = wordObj
+		lastDrawing.id = id
+		lastDrawing.time = 0|Date.now()*.001
 		Db.personal(App.memberId()).set 'lastDrawing', lastDrawing
 		cb.reply lastDrawing
 	else
@@ -68,7 +62,7 @@ exports.client_startDrawing = (cb) !->
 
 exports.client_getLetters = (drawingId, cb) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-	word = WordLists.wordList()[wordId][1]
+	word = WordList.getWord wordId
 	memberId = App.memberId()
 
 	if Db.personal(memberId).get drawingId # already started
@@ -95,9 +89,8 @@ exports.client_getLetters = (drawingId, cb) !->
 	scrambledLetters.count = letters.length
 
 	# We won't send the word, but an array of word lengths and a hash of it
-	hash = Config.simpleHash(word.replace(/\s/g,''))
-	fields = (i.length for i in word.split(" "))
-
+	hash = Config.simpleHash(word)
+	fields = WordList.getFields(wordId)
 
 	cb.reply fields, hash, scrambledLetters
 
@@ -109,8 +102,8 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 	# We cannot set a timeframe, for the user might be without internet while guessing.
 
 	drawing = Db.shared.ref 'drawings', drawingId
-	word = WordLists.wordList()[drawing.get('wordId')][1]
-	if word.replace(/\s/g,'') is answer.replace(/\s/g,'') # correct!
+	word = WordList.getWord drawing.get('wordId')
+	if word is answer.replace(/\s/g,'') # correct!
 		# set artist's score if we have the highest
 		best = true
 		drawing.iterate 'members', (member) !->
@@ -124,7 +117,7 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		drawing.set('members', memberId, time)
 		Db.shared.set 'scores', memberId, drawingId, Config.timeToScore(time)
 	else
-		log "answer was not correct",  word.replace(/\s/g,''), 'vs', answer.replace(/\s/g, '')
+		log "answer was not correct",  word, 'vs', answer.replace(/\s/g, '')
 
 exports.client_submitForfeit = (drawingId) !->
 	memberId = App.memberId()
@@ -135,7 +128,7 @@ exports.client_submitForfeit = (drawingId) !->
 exports.client_getWord = (drawingId, cb) !->
 	if Db.shared.get 'drawings', drawingId, 'members', App.memberId()
 		wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-		word = WordLists.wordList()[wordId][1]
+		word = WordList.getWord wordId, false
 		cb.reply word
 	else # you haven't even guessed! no word for you.
 		cb.reply false

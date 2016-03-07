@@ -140,7 +140,8 @@ exports.render = !->
 			Obs.observe !-> # We compare to a simple hash so we can work offline.
 			# If some Erik breaks this, we'll think of something better >:)
 				solution = (chosenLettersO.get(i) for i in [0...length]).join ''
-				if solution.length is length
+				log "solution:", solution, solution.length, 'vs', length
+				if solution.length is length	
 					if Config.simpleHash(solution) is solutionHash
 						# set timer
 						timer = Math.round((Date.now()-timer)*.001)
