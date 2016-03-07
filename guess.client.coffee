@@ -29,6 +29,9 @@ exports.render = !->
 	timeUsedO = Obs.create 0
 
 	# ask the server for the info we need. The server will also note down the member started guessing.
+	drawingR = Db.shared.ref('drawings', drawingId)
+	return unless drawingR.get('steps') # check if we have steps
+
 	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters) !->
 		unless _fields
 			log "got null from server. word is either illegal or we already guessed this drawing"
@@ -41,7 +44,7 @@ exports.render = !->
 		timer = Date.now()
 		initializedO.set true
 
-		Obs.interval 1000, !->
+		Obs.interval 200, !->
 			timeUsedO.set Math.min((Date.now() - timer), GUESS_TIME)
 
 		Obs.onTime GUESS_TIME, !->
@@ -64,8 +67,6 @@ exports.render = !->
 					Server.sync 'submitForfeit', drawingId, !->
 						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 						Db.shared.set 'scores', App.memberId(), drawingId, 0
-
-	drawingR = Db.shared.ref('drawings', drawingId)
 
 	Dom.style backgroundColor: '#EEEDEA', height: '100%', Box: 'vertical'
 
@@ -104,7 +105,6 @@ exports.render = !->
 						width = containerE.width()
 						height = containerE.height()
 						size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
-						log "nextTick size:", width, height, size
 						containerE.style width: size+'px', height: size*CANVAS_RATIO+'px'
 				cvs = Canvas.render null # render canvas
 
