@@ -121,7 +121,7 @@ exports.render = !->
 				startTheClock()
 				# time's started, let's do setup
 				addStep 'brush', {size: lineWidthO.peek()}
-				addStep 'col', { col: colorO.peek() }
+				addStep 'col', { col: getColor() }
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
 			addStep 'move', lastPoint
 			drawPhase = 1 # started
