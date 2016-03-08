@@ -95,7 +95,7 @@ wordList = [
 	[9, "backbone", "a", 1, false],
 	[10, "bomb", "a", 1, false],
 	[11, "treasure", "a", 1, true],
-	[12, "garbage", "a", 1, true],
+	[12, "garbage", "", 1, true],
 	[13, "park", "a", 1, false],
 	[14, "pirate", "a", 1, true],
 	[15, "ski", "a", 1, false],
