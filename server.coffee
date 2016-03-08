@@ -10,28 +10,31 @@ WordList = require 'wordLists'
 # Storage overview
 # Personal:
 #	<drawingId>: <time guessed>
+#	words:
+#		<drawingId>: <display word>
 
 # Shared:
-#	<drawingId>:
-#		Stuff about time and author
-#		steps: <data in string>
-#		members:
-#			<memberId>: <time they needed to guess in sec>
+#	drawings:
+#		<drawingId>:
+#			Stuff about time and author
+#			steps: <data in string>
+#			members:
+#				<memberId>: <time they needed to guess in sec>
 
 #	scores:
 #		<memberId>:
 #			<drawingId>: <score>
 
-exports.onUpgrade = !->
-	log 'updating'
-	for member in App.memberIds()
-		log "updating", member
-		log JSON.stringify Db.personal(member).get()
-		for drawingId, v of Db.personal(member).get()
-			if drawingId is 'lastDrawing' or drawingId is 'words'
-				log "skipping", drawingId
-			else
-				addWordToPersonal member, drawingId
+# exports.onUpgrade = !->
+# 	log 'updating'
+# 	for member in App.memberIds()
+# 		log "updating", member
+# 		log JSON.stringify Db.personal(member).get()
+# 		for drawingId, v of Db.personal(member).get()
+# 			if drawingId is 'lastDrawing' or drawingId is 'words'
+# 				log "skipping", drawingId
+# 			else
+# 				addWordToPersonal member, drawingId
 
 addWordToPersonal = (memberId, drawingId) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
@@ -62,14 +65,16 @@ exports.client_addDrawing = (id, steps, time) !->
 		pushText: App.userName() + " added a new drawing"
 		path: '/'
 
-
 exports.client_startDrawing = (cb) !->
 	personalDb = Db.personal App.memberId()
 	lastDrawing = personalDb.get('lastDrawing')||false
 
 	if !lastDrawing or lastDrawing.time+(Config.cooldown()) < Date.now()*.001 # first or at least 4 hours ago
 
-		wordObj = WordList.getObject null, false
+		wordObj = WordList.getRndWordObjects 1, false # get one word
+		if not wordObj
+			cb.reply "out of words"
+			return
 		id = Db.shared.get('drawingCount')||0
 		Db.shared.incr 'drawingCount'
 
@@ -144,6 +149,8 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 	else
 		log "answer was not correct",  word, 'vs', answer.replace(/\s/g, '')
 		submitForfeit (drawingId)
+
+	# add notice to the comments thread
 
 exports.client_submitForfeit = submitForfeit = (drawingId) !->
 	memberId = App.memberId()
