@@ -68,20 +68,7 @@ exports.render = !->
 						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 						Db.shared.set 'scores', App.memberId(), drawingId, 0
 
-	Dom.style backgroundColor: '#EEEDEA', height: '100%', Box: 'vertical'
-
-	overlay = (cb) !->
-		Dom.style
-			position: 'absolute'
-			top: 0
-			width: '100%'
-			height: '100%'
-			margin: 0
-			ChildMargin: 16
-			Box: 'middle center'
-			background: "rgba(255, 255, 255, 0.9)"
-			color: 'black'
-		cb()
+	Dom.style backgroundColor: '#DDD', height: '100%', Box: 'vertical'
 
 	Obs.observe !->
 		if initializedO.get()
@@ -92,7 +79,7 @@ exports.render = !->
 			Dom.div !->
 				Dom.style
 					position: 'relative'
-					margin: '0 auto'
+					margin: "0 auto"
 					Flex: true
 					overflow: 'hidden'
 				size = 296
@@ -105,7 +92,11 @@ exports.render = !->
 						width = containerE.width()
 						height = containerE.height()
 						size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
-						containerE.style width: size+'px', height: size*CANVAS_RATIO+'px'
+						containerE.style
+							width: size+'px'
+							height: size*CANVAS_RATIO+'px'
+							Flex: false
+							margin: "auto auto"
 				cvs = Canvas.render null # render canvas
 
 				Obs.observe !->
@@ -158,18 +149,11 @@ exports.render = !->
 
 			Dom.div !->
 				Dom.style background: '#666', margin: 0
-				Icon.render
-					data: 'backspace'
-					color: 'white'
-					style:
-						float: 'right'
-						margin: '2px'
-					onTap: !->
-						log "clear!"
-						for i in [0...chosenLettersO.get('count')] then do (i) !->
-							moveTile chosenLettersO, lettersO, i
-
-				renderGuessing chosenLettersO, lettersO
+				Dom.div !->
+					Dom.style
+						margin: "0 auto"
+						# maxWidth: '388px'
+					renderGuessing chosenLettersO, lettersO
 		else
 			Ui.emptyText tr("Loading ...")
 
@@ -182,72 +166,105 @@ exports.render = !->
 				break
 
 	renderGuessing = (chosenLettersO, remainingLettersO) !->
-		renderTiles = (fromO, toO, format=false) !->	Dom.div !->
+		renderTiles = (fromO, toO, format=false) !->
+			# if format
+			# 	l = 0
+			# 	for i in fields
+			# 		Dom.div !->
+			# 			Dom.style
+			# 				display: 'inline-block'
+			# 				margin: "0 6px"
+			# 			for j in [0...i] then do (l, j) !->
+			# 				Dom.div !->
+			# 					Dom.addClass 'tile'
+			# 					k = l+j
+			# 					letter = fromO.get(k)
+			# 					if letter then Dom.onTap !-> moveTile fromO, toO, k
+			# 					Dom.div !->
+			# 						Dom.addClass 'tileContent'
+			# 						Obs.observe !->
+			# 							if letter
+			# 								Dom.addClass 'letter'
+			# 								Dom.removeClass 'empty'
+			# 								Dom.text fromO.get(k)
+			# 							else
+			# 								Dom.addClass 'empty'
+			# 								Dom.removeClass 'letter'
+			# 								Dom.text '-'
+			# 			l+=i
+			# else
+			for i in [0...fromO.get('count')] then do (i) !->
+				Dom.div !->
+					Dom.addClass 'tile'
+					letter = fromO.get(i)
+					if letter then Dom.onTap !-> moveTile fromO, toO, i
+					Dom.div !->
+						Dom.addClass 'tileContent'
+						if letter
+							Dom.addClass 'letter'
+							Dom.removeClass 'empty'
+							Dom.text fromO.get(i)
+						else
+							Dom.addClass 'empty'
+							Dom.removeClass 'letter'
+							Dom.userText "&nbsp;"
+		padding = if Page.height() > 700 then 6 else 3
+		Dom.div !->
 			Dom.style
+				background: '#444'
+				padding: '3px 0px'
+				width: '100%'
 				textAlign: 'center'
-			if format
-				l = 0
-				for i in fields
-					Dom.div !->
-						Dom.style
-							display: 'inline-block'
-							margin: "0 6px"
-						for j in [0...i] then do (l, j) !->
-							Dom.div !->
-								Dom.addClass 'tile'
-								k = l+j
-								letter = fromO.get(k)
-								if letter then Dom.onTap !-> moveTile fromO, toO, k
-								Dom.div !->
-									Dom.addClass 'tileContent'
-									Obs.observe !->
-										if letter
-											Dom.addClass 'letter'
-											Dom.removeClass 'empty'
-											Dom.text fromO.get(k)
-										else
-											Dom.addClass 'empty'
-											Dom.removeClass 'letter'
-											Dom.text '-'
-						l+=i
-			else
-				for i in [0...fromO.get('count')] then do (i) !->
-					Dom.div !->
-						Dom.addClass 'tile'
-						letter = fromO.get(i)
-						if letter then Dom.onTap !-> moveTile fromO, toO, i
-						Dom.div !->
-							Dom.addClass 'tileContent'
-							if letter
-								Dom.addClass 'letter'
-								Dom.removeClass 'empty'
-								Dom.text fromO.get(i)
-							else
-								Dom.addClass 'empty'
-								Dom.removeClass 'letter'
-								Dom.userText "&nbsp;"
+			renderTiles chosenLettersO, remainingLettersO, true
+		Dom.div !->
+			Dom.style
+				Box: 'middle'
+				maxWidth: if Page.height() > 700 then "388px" else "333px"
+				textAlign: 'center'
+				margin: "0 auto"
+			Dom.div !->
+				Dom.style
+					Flex: true
+					padding: padding
+				renderTiles remainingLettersO, chosenLettersO, false
+			Icon.render
+				data: 'close' # backspace
+				color: 'white'
+				size: 18
+				style:
+					padding: '3px'
+					# margin: "0 5px #{2+padding}px 0"
+					marginRight: '5px'
+					border: "1px solid white"
+					borderRadius: '2px'
+				onTap: !->
+					log "clear!"
+					for i in [0...chosenLettersO.get('count')] then do (i) !->
+						moveTile chosenLettersO, lettersO, i
 
-		renderTiles chosenLettersO, remainingLettersO, true
-		renderTiles remainingLettersO, chosenLettersO, false
+		Dom.css
+			'.tile':
+				display: 'inline-block'
+				padding: "#{padding}px"
 
-Dom.css
-	'.tile':
-		display: 'inline-block'
-		padding: '5px'
+			'.tileContent':
+				width: '32px'
+				height: '32px'
+				borderRadius: '3px'
+				border: '1px solid grey'
+				fontSize: '26px'
+				lineHeight: '32px'
+				textTransform: 'uppercase'
+				color: 'grey'
+				textAlign: 'center'
 
-	'.tileContent':
-		width: '40px'
-		height: '40px'
-		borderRadius: '3px'
-		border: '1px solid grey'
-		fontSize: '30px'
-		textTransform: 'uppercase'
-		boxShadow: 'black 1px 1px'
-		color: 'grey'
-		textAlign: 'center'
+			'.tileContent.empty':
+				background: 'white'
+				boxShadow: 'none'
 
-	'.tileContent.empty':
-		background: 'white'
+			'.tileContent.letter':
+				background: 'beige'
+				boxShadow: "black 1px 1px"
 
-	'.tileContent.letter':
-		background: 'beige'
+			'.tap .tileContent.letter':
+				background: '#DADAD9'

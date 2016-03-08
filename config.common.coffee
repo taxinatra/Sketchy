@@ -1,6 +1,6 @@
 exports.canvasRatio = -> 1.283783784 # (296 * 380)
 exports.canvasSize = -> 676
-exports.drawTime = -> 45000 # ms
+exports.drawTime = -> 450000 # ms
 exports.guessTime = -> 60000 # ms
 exports.cooldown = -> 3600*4 # 4 hours in sec
 

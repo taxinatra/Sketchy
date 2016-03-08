@@ -38,12 +38,10 @@ WordList = require 'wordLists'
 
 addWordToPersonal = (memberId, drawingId) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-	log "hopefully setting", memberId, drawingId, wordId
 	word = WordList.getWord wordId, false
 	prefix = WordList.getPrefix(wordId)
 	value = if prefix then prefix + " " + word else word
 	Db.personal(memberId).set('words', drawingId, value)
-	log "setting:", memberId, drawingId, drawingId, value
 
 exports.client_addDrawing = (id, steps, time) !->
 	personalDb = Db.personal App.memberId()
@@ -106,11 +104,8 @@ exports.client_getLetters = (drawingId, cb) !->
 	Db.shared.set 'scores', memberId, drawingId, 0
 
 	# some random letters
-	letters = Letters.getRandom Math.min(8, Math.max(5, word.length))
-
-	(if c isnt ' ' then letters.push c) for c in word
-
-	count = 0
+	letters = Letters.getRandom 14-word.length
+	letters.push c for c in word
 	scrambledLetters = {}
 	scrambledLetters[i] = letter for letter, i in letters.sort()
 	scrambledLetters.count = letters.length

@@ -15,7 +15,7 @@ Timer = require 'timer'
 
 # COLORS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
 # use deciHexi only!
-COLORS = ['#EEEDEA', '#45443D', '#FFFFFF', '#0077CF', '#DD2BC3', '#F1560A', '#F1E80A', '#0CE666', '#BA5212', '#F9B6DD']
+COLORS = ['#DDDDDD', '#45443D', '#FFFFFF', '#0077CF', '#DD2BC3', '#F1560A', '#F1E80A', '#0CE666', '#BA5212', '#F9B6DD']
 BRIGHT_COLORS = ['#EEEDEA', '#45443D', '#FFFFFF', '#5CACE7', '#F0ABE6', '#F1AA88', '#FFFCAF', '#9BFF80', '#E59B6D', '#F9B6DD']
 DARK_COLORS = ['#EEEDEA', '#000000', '#D6C9CC', '#003D6B', '#731665', '#960F00', '#785A00', '#00840B', '#513515', '#875572']
 BRUSH_SIZES = [{t:'S',n:5}, {t:'M',n:16}, {t:'L',n:36}, {t:'XL', n:160}]
@@ -31,7 +31,7 @@ exports.render = !->
 	Server.call 'startDrawing', (drawing) !->
 		if drawing is false
 			log "You don't belong here! Wait for your turn."
-			Page.back()
+			Page.up()
 		drawingId = drawing.id
 		myWordO.set drawing
 
