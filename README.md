@@ -1,6 +1,6 @@
-Pictionary
+Sketchy
 ==========
-Make others guess what you have drawn.
+Make others guess what you have sketched.
 
 What's Happening?
 -----------------

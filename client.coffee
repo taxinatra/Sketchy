@@ -25,15 +25,12 @@ exports.render = !->
 	renderOverview()
 
 renderOverview = !->
-	Comments.enable
-		messages:
-			new: (c) -> tr("%1 added a new drawing", c.user)
 
 	Obs.observe !->
 		if (t = (Db.personal.get('lastDrawing', 'time')||0)+Config.cooldown()) < Date.now()*0.001
 			Ui.item
 				icon: 'add'
-				content: tr("Start drawing")
+				content: tr("Start sketching")
 				onTap: !->
 					Page.nav 'draw'
 		else
@@ -43,7 +40,7 @@ renderOverview = !->
 				content: !->
 					Dom.text tr("Wait ")
 					Time.deltaText t, 'duration'
-				sub: tr("Before you can draw again")
+				sub: tr("Before you can sketch again")
 				style: color: '#999'
 
 	Db.shared.iterate 'drawings', (drawing) !->
@@ -62,9 +59,9 @@ renderOverview = !->
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				item.content = !->
-					Dom.userText tr("Your drawing of **%1**", what)
+					Dom.userText tr("Your sketching of **%1**", what)
 			else
-				item.content = tr("Your drawing")
+				item.content = tr("Your sketching")
 			if mem
 				item.sub = !->
 					Dom.text tr("Guessed by ")
@@ -81,7 +78,7 @@ renderOverview = !->
 				item.content = !->
 					Dom.userText tr("%1 drew **%2**", App.memberName(memberId), what)
 			else
-				item.content = tr("Drawing by %1", App.memberName(memberId))
+				item.content = tr("Sketching by %1", App.memberName(memberId))
 			if state >= 0
 				item.sub = tr("Guessed by you in %1 second|s", state)
 			else
@@ -89,7 +86,7 @@ renderOverview = !->
 			item.afterIcon = !->
 					View.renderPoints(Db.shared.get('scores', yourId, drawing.key()), 40)
 		else # no state, so not guessed yet
-			item.content = tr("Guess drawing by %1", App.memberName(memberId))
+			item.content = tr("Guess sketching by %1", App.memberName(memberId))
 			item.sub= !->
 				Dom.text "Drawn "
 				Time.deltaText(drawing.get('time'))
@@ -110,7 +107,7 @@ renderScores = !->
 		Ui.item
 			avatar: member.get('avatar')
 			content: member.get('name')
-			sub: tr("Guessed %1 drawing|s", Object.keys(scores||{}).length)
+			sub: tr("Guessed %1 sketching|s", Object.keys(scores||{}).length)
 			afterIcon: !->
 				s = 0
 				s += v for k, v of scores

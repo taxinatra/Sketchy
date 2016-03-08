@@ -34,7 +34,7 @@ exports.render = !->
 
 	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters) !->
 		unless _fields
-			log "got null from server. word is either illegal or we already guessed this drawing"
+			log "got null from server. word is either illegal or we already guessed this sketching"
 			Page.up()
 			return
 		fields = _fields
@@ -62,7 +62,7 @@ exports.render = !->
 		if initializedO.get()
 			Page.setBackConfirm
 				title: tr("Are you sure?")
-				message: tr("This is your only chance to guess this drawing.")
+				message: tr("This is your only chance to guess this sketching.")
 				cb: !->
 					Server.sync 'submitForfeit', drawingId, !->
 						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2

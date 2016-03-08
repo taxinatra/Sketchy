@@ -55,7 +55,7 @@ exports.render = !->
 		state = 0
 		Dom.div !->
 			if drawingR.get('memberId') is App.memberId() # my drawing
-				Dom.h1 tr("Your drawing")
+				Dom.h1 tr("Your sketch")
 				arr = (v for k, v of drawingR.get('members'))
 				lowestTime = 99
 				for i in arr

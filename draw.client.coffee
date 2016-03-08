@@ -210,7 +210,7 @@ exports.render = !->
 			border: 0
 		word = myWordO.get()
 		if word
-			Dom.text tr("Draw %1 '%2'", word.prefix, word.word)
+			Dom.text tr("Sketch %1 '%2'", word.prefix, word.word)
 		else
 			Dom.text "_" # prevent resizing when word has been retrieved
 
@@ -239,8 +239,8 @@ exports.render = !->
 				pointerEvents: 'none' # don't be tappable
 			word = myWordO.get()
 			return unless word
-			Ui.emptyText tr("Draw %1 '%2'", word.prefix, word.word)
-			Ui.emptyText tr("Timer will start when you start drawing");
+			Ui.emptyText tr("Sketch %1 '%2'", word.prefix, word.word)
+			Ui.emptyText tr("Timer will start when you start sketching");
 
 	# toolbar
 	Dom.div !-> # shelf
