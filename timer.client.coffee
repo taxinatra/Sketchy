@@ -1,14 +1,14 @@
 Dom = require 'dom'
 Obs = require 'obs'
 
-exports.render = (maxTime, elapsedO, top=4) !->
+exports.render = (maxTime, elapsedO, top=4, right=4) !->
 	Dom.div !-> # timer
 		Dom.style
 			position: 'absolute'
 			width: '50px'
 			height: '50px'
 			top: top+'px'
-			right: '4px'
+			right: right+'px'
 			margin: '0 auto'
 			borderRadius: '50%'
 			border: '1px solid white'

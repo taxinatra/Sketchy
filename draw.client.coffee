@@ -23,6 +23,7 @@ BRUSH_SIZES = [{t:'S',n:5}, {t:'M',n:16}, {t:'L',n:36}, {t:'XL', n:160}]
 CANVAS_SIZE = Config.canvasSize()
 CANVAS_RATIO = Config.canvasRatio()
 
+THINK_TIME = Config.thinkingTime()
 DRAW_TIME = Config.drawTime()
 
 exports.render = !->
@@ -39,6 +40,8 @@ exports.render = !->
 		drawingId = drawing.id
 		myWordO.set drawing
 
+		startThinkTimer() # start
+
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
 	colorO = Obs.create 1
@@ -47,13 +50,25 @@ exports.render = !->
 
 	steps = []
 
+	thinkTimer = Obs.create false
 	startTime = Obs.create false
 	timeUsed = Obs.create 0
 	size = 296 # render size of the canvas
 
-	Obs.observe !->
+	Obs.observe !-> # needs to be in obs scope for cleaning reasons
 		if startTime.get()
 			Form.setPageSubmit submit, true
+			Obs.onTime DRAW_TIME, submit
+		else if thinkTimer.get()
+			Obs.onTime THINK_TIME, !->
+				thinkTimer.set false
+				startTheClock()
+
+		Obs.interval 200, !->
+			if st = thinkTimer.peek()
+				timeUsed.set Math.min((Date.now() - st), THINK_TIME)
+			else if st = startTime.peek()
+				timeUsed.set Math.min((Date.now() - st), DRAW_TIME)
 
 	# ------------ helper functions -------------
 
@@ -65,9 +80,17 @@ exports.render = !->
 		return COLORS[i] if t is 1
 		return BRIGHT_COLORS[i] if t is 2
 
+	startThinkTimer = !->
+		return if thinkTimer.peek() isnt false # timer already running
+		thinkTimer.set Date.now()
+
 	startTheClock = !->
 		return if startTime.peek() isnt false # timer already running
 		startTime.set Date.now()
+
+		# time's started, let's do setup
+		addStep 'brush', {size: lineWidthO.peek()}
+		addStep 'col', { col: getColor() }
 
 	submit = !->
 		time = 0|Date.now()*.001
@@ -75,7 +98,6 @@ exports.render = !->
 		# TODO? upload the result as png
 
 		# convert steps to a more efficient format
-		# Type[1], value1[FF], value2[FF], value3[FF]
 		data = ""
 		for step in steps
 			line = Canvas.encode(step)
@@ -121,11 +143,7 @@ exports.render = !->
 
 		if t.op&1
 			if startTime.peek() is false
-				log 'starting the clock'
 				startTheClock()
-				# time's started, let's do setup
-				addStep 'brush', {size: lineWidthO.peek()}
-				addStep 'col', { col: getColor() }
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
 			addStep 'move', lastPoint
 			drawPhase = 1 # started
@@ -150,15 +168,6 @@ exports.render = !->
 			return true
 
 		return false # if we've handled it, let's stop the rest from responding too
-
-	Obs.observe !-> # send the drawing to server
-		st = startTime.get()
-		return if st is false
-
-		Obs.interval 1000, !->
-			timeUsed.set Math.min((Date.now() - st), DRAW_TIME)
-
-		Obs.onTime DRAW_TIME, submit
 
 	# ------------ button functions ---------------
 	renderColorSelector = !->
@@ -218,7 +227,11 @@ exports.render = !->
 		else
 			Dom.text "_" # prevent resizing when word has been retrieved
 
-	Timer.render DRAW_TIME, timeUsed, 44
+	Obs.observe !->
+		if startTime.get()
+			Timer.render DRAW_TIME, timeUsed, 44
+		else if thinkTimer.get()
+			Timer.render THINK_TIME, timeUsed, 70, Page.width()/2-25
 
 	cvs = false
 	Dom.div !->
@@ -244,7 +257,8 @@ exports.render = !->
 			word = myWordO.get()
 			return unless word
 			Ui.emptyText tr("Sketch %1 '%2'", word.prefix, word.word)
-			Ui.emptyText tr("Timer will start when you start sketching");
+			Ui.emptyText tr("Start sketching before the timer is done.");
+			Ui.emptyText tr("You then have %1 seconds to finish.", 0|DRAW_TIME*.001);
 
 	# toolbar
 	Dom.div !-> # shelf
