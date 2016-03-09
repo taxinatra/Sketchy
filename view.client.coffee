@@ -55,7 +55,7 @@ exports.render = !->
 
 		state = 0
 		Dom.div !->
-			Dom.style minHeight: '90px'
+			Dom.style minHeight: '105px'
 			if drawingR.get('memberId') is App.memberId() # my drawing
 				Dom.h1 tr("Your sketch")
 				arr = (v for k, v of drawingR.get('members'))
@@ -65,12 +65,21 @@ exports.render = !->
 				if arr.length
 					if lowestTime is 99
 						Dom.text tr("has not been successfully guessed yet")
+						Dom.div !->
+							Dom.style color: '#777', margin: '12px'
+							Dom.text tr("You will be rewarded the same amount of points as the fastest player.")
 						state = 1
 					else
 						Dom.text tr("has been guessed in %1 second|s", lowestTime)
+						Dom.div !->
+							Dom.style color: '#777', margin: '12px'
+							Dom.text tr("You are awarded the same amount of points as the fastest player.")
 						state = 2
 				else
 					Dom.text tr("has not been guessed yet")
+					Dom.div !->
+						Dom.style color: '#777', margin: '12px'
+						Dom.text tr("You will be rewarded the same amount of points as the fastest player.")
 					state = 0
 			else # you have guessed
 				if myTime >= 0
