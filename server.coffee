@@ -25,16 +25,14 @@ WordList = require 'wordLists'
 #		<memberId>:
 #			<drawingId>: <score>
 
-# exports.onUpgrade = !->
-# 	log 'updating'
-# 	for member in App.memberIds()
-# 		log "updating", member
-# 		log JSON.stringify Db.personal(member).get()
-# 		for drawingId, v of Db.personal(member).get()
-# 			if drawingId is 'lastDrawing' or drawingId is 'words'
-# 				log "skipping", drawingId
-# 			else
-# 				addWordToPersonal member, drawingId
+exports.onUpgrade = !->
+	wordObj = WordList.getRndWordObjects 1, false # get one word
+	if wordObj
+		Db.shared.set "outOfWords", false
+		log "update: we have words available"
+	else
+		Db.shared.set "outOfWords", true
+		log "update: still out of words"
 
 addWordToPersonal = (memberId, drawingId) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
@@ -71,8 +69,10 @@ exports.client_startDrawing = (cb) !->
 
 		wordObj = WordList.getRndWordObjects 1, false # get one word
 		if not wordObj
+			Db.shared.set "outOfWords", true
 			cb.reply "out of words"
 			return
+
 		id = Db.shared.get('drawingCount')||0
 		Db.shared.incr 'drawingCount'
 

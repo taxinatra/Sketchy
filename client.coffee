@@ -27,6 +27,14 @@ exports.render = !->
 renderOverview = !->
 
 	Obs.observe !->
+		if Db.shared.get 'outOfWords'
+			Ui.item
+				icon:'info'
+				color: '#999'
+				content: tr("No more words left to sketch")
+				sub: tr("We know of your hardship and will add new words shortly.")
+				style: color: '#999'
+			return
 		if (t = (Db.personal.get('lastDrawing', 'time')||0)+Config.cooldown()) < Date.now()*0.001
 			Ui.item
 				icon: 'add'

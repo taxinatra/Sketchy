@@ -32,6 +32,10 @@ exports.render = !->
 		if drawing is false
 			log "You don't belong here! Wait for your turn."
 			Page.up()
+		if drawing is "out of words"
+			log "We're out of words. Sorry."
+			Page.up()
+
 		drawingId = drawing.id
 		myWordO.set drawing
 
