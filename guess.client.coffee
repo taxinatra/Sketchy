@@ -56,7 +56,7 @@ exports.render = !->
 			Server.sync 'submitForfeit', drawingId, !->
 				Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 				Db.shared.set 'scores', App.memberId(), drawingId, 0
-			Page.nav {0:'view', '?drawing':drawingId}
+			Page.nav {drawingId}
 
 	Obs.observe !->
 		if initializedO.get()
@@ -141,7 +141,7 @@ exports.render = !->
 							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
 							Db.shared.set 'scores', App.memberId(), drawingId
 
-						Page.nav {0:'view', '?drawing':drawingId}
+						Page.nav {0:drawingId}
 					else
 						incorrectO.set true
 				else

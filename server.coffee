@@ -1,6 +1,7 @@
 App = require 'app'
 Comments = require 'comments'
 Db = require 'db'
+Event = require 'event'
 {tr} = require 'i18n'
 
 Config = require 'config'
@@ -41,6 +42,15 @@ addWordToPersonal = (memberId, drawingId) !->
 	value = if prefix then prefix + " " + word else word
 	Db.personal(memberId).set('words', drawingId, value)
 
+membersToNotify = (id) ->
+	return 'all' if id <= 1
+	r = [Db.shared.get('drawings', id, 'memberId')] # add the artist
+	lastMembers = Db.shared.get('drawings', id, 'members')||false
+	return r if lastMembers is false
+	# include members who guessed last drawing
+	((r.push id) if id of lastMembers) for id in App.memberIds()
+	return r
+
 exports.client_addDrawing = (id, steps, time) !->
 	personalDb = Db.personal App.memberId()
 	#return if (personalDb.get 'currentDrawing') isnt id
@@ -56,10 +66,23 @@ exports.client_addDrawing = (id, steps, time) !->
 	addWordToPersonal App.memberId(), id
 
 	# notify
-	Comments.post
-		s: 'new'
-		pushText: App.userName() + " added a new drawing"
-		path: '/'
+	f = membersToNotify id-1
+	if f isnt 'none'
+		Event.create
+			text: App.userName() + " added a new drawing"
+			path: '/'
+			for: f
+
+	# silent notify the rest
+	return if f is 'all'
+	if f is 'none'
+		f = 'all'
+	else
+		f = (-v for v in f) # inverse the array
+	Event.create
+		push: false # silent
+		text: ''
+		for: f
 
 exports.client_startDrawing = (cb) !->
 	personalDb = Db.personal App.memberId()
