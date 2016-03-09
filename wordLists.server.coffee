@@ -250,7 +250,7 @@ wordList = [
 	[161, "corner", "a", 1, true]
 	[162, "popcorn", "", 1, true]
 	[163, "seastar", "a", 1, true]
-	[164, "octopus", "a", 1, true]
+	[164, "octopus", "an", 1, true]
 	[165, "desk", "an", 1, false]
 	[166, "pie", "a", 1, false]
 	[167, "kitten", "a", 1, true]
