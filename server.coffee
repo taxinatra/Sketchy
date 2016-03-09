@@ -188,7 +188,8 @@ exports.client_submitForfeit = submitForfeit = (drawingId) !->
 	addWordToPersonal memberId, drawingId
 
 exports.client_getWord = (drawingId, cb) !->
-	if Db.shared.get 'drawings', drawingId, 'members', App.memberId()
+	time = Db.shared.get 'drawings', drawingId, 'members', App.memberId()
+	if time and time isnt -1 # -1 is 'currently guessing'
 		wordId = Db.shared.get 'drawings', drawingId, 'wordId'
 		word = WordList.getWord wordId, false
 		cb.reply word
