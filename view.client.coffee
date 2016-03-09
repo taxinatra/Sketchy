@@ -37,8 +37,6 @@ exports.render = !->
 	Comments.enable
 		store: ['drawings', drawingId, 'comments']
 		postRpc: 'post'
-		messages: # no longer generated
-			new: (c) -> tr("%1 added a new drawing", c.user)
 
 	Dom.style minHeight: '100%'
 

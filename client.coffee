@@ -25,6 +25,9 @@ exports.render = !->
 	renderOverview()
 
 renderOverview = !->
+	Comments.enable
+		messages: # no longer generated
+			new: (c) -> tr("%1 added a new drawing", c.user)
 
 	Obs.observe !->
 		if Db.shared.get 'outOfWords'
