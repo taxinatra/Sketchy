@@ -161,3 +161,12 @@ exports.client_getWord = (drawingId, cb) !->
 		cb.reply word
 	else # you haven't even guessed! no word for you.
 		cb.reply false
+
+exports.client_post = (comment) !->
+	drawingId = comment.store[1]
+	f = [Db.shared.get 'drawings', drawingId, 'memberId'] # artist
+	for k,v of Db.shared.get 'drawings', drawingId, 'members'
+		f.push 0|k if v isnt -1
+	comment.path = "/#{drawingId}?comments"
+	comment.pushFor = f
+	Comments.post comment

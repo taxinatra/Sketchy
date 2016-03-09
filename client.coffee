@@ -19,8 +19,8 @@ exports.render = !->
 	pageName = Page.state.get(0)
 	return Draw.render() if pageName is 'draw'
 	return Guess.render() if pageName is 'guess'
-	return View.render() if pageName is 'view'
 	return renderScores() if pageName is 'scores'
+	return View.render() if pageName # anything else
 
 	renderOverview()
 
@@ -58,7 +58,7 @@ renderOverview = !->
 
 		item =
 			avatar: App.memberAvatar(memberId)
-			onTap: !-> Page.nav {0:'view', '?drawing':drawing.key()}
+			onTap: !-> Page.nav {0:drawing.key()}
 		if Event.isNew(drawing.get('time'))
 			item.style = color: '#5b0'
 
@@ -75,6 +75,7 @@ renderOverview = !->
 					Dom.text tr("Guessed by ")
 					Dom.text (a = (App.memberName(+k) for k, v of mem)).join(" · ")
 				item.afterIcon = !->
+					Event.renderBubble ['/'+drawing.key()+"?comments"]
 					View.renderPoints(Db.shared.get('scores', yourId, drawing.key())||0, 40)
 			else
 				item.sub = !->
@@ -92,6 +93,7 @@ renderOverview = !->
 			else
 				item.sub = tr("Failed to guess")
 			item.afterIcon = !->
+					Event.renderBubble ['/'+drawing.key()+"?comments"]
 					View.renderPoints(Db.shared.get('scores', yourId, drawing.key()), 40)
 		else # no state, so not guessed yet
 			item.content = tr("Guess sketching by %1", App.memberName(memberId))
@@ -100,6 +102,8 @@ renderOverview = !->
 				Time.deltaText(drawing.get('time'))
 			item.onTap = !->
 				Page.nav {0:'guess', '?drawing':drawing.key()}
+			item.afterIcon = !->
+				Event.renderBubble ['/'+drawing.key()+"?comments"]
 
 		Ui.item item
 

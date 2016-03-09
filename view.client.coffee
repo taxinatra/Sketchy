@@ -1,5 +1,6 @@
 App = require 'app'
 Canvas = require 'canvas'
+Comments = require 'comments'
 Db = require 'db'
 Dom = require 'dom'
 Modal = require 'modal'
@@ -30,8 +31,12 @@ exports.renderPoints = renderPoints = (points, size, style=null) !->
 		Dom.text points
 
 exports.render = !->
-	drawingId = Page.state.get('?drawing')
+	drawingId = Page.state.get(0)
 	drawingR = Db.shared.ref('drawings', drawingId)
+
+	Comments.enable
+		store: ['drawings', drawingId, 'comments']
+		serverCall: 'post'
 
 	Dom.style minHeight: '100%'
 
