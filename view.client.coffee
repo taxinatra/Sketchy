@@ -34,10 +34,6 @@ exports.render = !->
 	drawingId = Page.state.get(0)
 	drawingR = Db.shared.ref('drawings', drawingId)
 
-	Comments.enable
-		store: ['drawings', drawingId, 'comments']
-		postRpc: 'post'
-
 	Dom.style minHeight: '100%'
 
 	overlay = (cb) !->
@@ -59,6 +55,7 @@ exports.render = !->
 
 		state = 0
 		Dom.div !->
+			Dom.style minHeight: '90px'
 			if drawingR.get('memberId') is App.memberId() # my drawing
 				Dom.h1 tr("Your sketch")
 				arr = (v for k, v of drawingR.get('members'))
@@ -101,6 +98,7 @@ exports.render = !->
 						wordO.set word
 					else
 						log "You haven't guessed this question, but requested the answer. That's not very nice."
+						Page.up()
 
 		return if state is 0 # lack of goto :p
 		Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
@@ -113,7 +111,7 @@ exports.render = !->
 				Dom.text if points>1 then tr("points") else tr("point")
 			Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 		Dom.div !->
-			Dom.style Flex: true, textAlign: 'left', width:'100%', margin: 0
+			Dom.style textAlign: 'left', width:'100%', margin: 0, minHeight: '100px'
 			drawingR.iterate 'members', (member) !->
 				return if member.get() is -1 # skip members who are currently guessing
 				Ui.item
@@ -184,3 +182,9 @@ exports.render = !->
 			_transform: "translateY(#{'0px'})" # need to make this a hardware layer. or zIndex doesn't work
 			height: '100%'
 		renderScoreScreen()
+
+		Dom.div !->
+			Dom.style width: '100%', textAlign: 'left', _boxSizing: 'border-box', ChildMargin: 12
+			Comments.inline
+				store: ['drawings', drawingId, 'comments']
+				postRpc: 'post' # redirect to server.coffee
