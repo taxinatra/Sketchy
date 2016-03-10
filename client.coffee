@@ -38,7 +38,7 @@ renderOverview = !->
 				sub: tr("We know of your hardship and will add new words shortly.")
 				style: color: '#999'
 			return
-		if (t = (Db.personal.get('lastDrawing', 'time')||0)+Config.cooldown()) < Date.now()*0.001
+		if (t = (Db.personal.get('wait')||0)+Config.cooldown()) < Date.now()*0.001
 			Ui.item
 				icon: 'add'
 				content: tr("Start sketching")
@@ -51,7 +51,7 @@ renderOverview = !->
 				content: !->
 					Dom.text tr("Wait ")
 					Time.deltaText t, 'duration'
-				sub: tr("Before you can sketch again")
+				sub: tr("Or %1 more guess your previous sketch", Db.personal.get('waitGuessed')||"")
 				style: color: '#999'
 
 	Db.shared.iterate 'drawings', (drawing) !->
@@ -84,7 +84,6 @@ renderOverview = !->
 				item.sub = !->
 					Dom.text tr("Guessed by no one yet")
 		else if state? # you've guessed it
-			log "trying to get word:", drawing.key()
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				item.content = !->

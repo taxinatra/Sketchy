@@ -51,6 +51,31 @@ membersToNotify = (id) ->
 	((r.push id) if id of lastMembers) for id in App.memberIds()
 	return r
 
+setLastActive = (memberId) !->
+	Db.shared.set 'lastActive', memberId, 0|Date.now()*.001
+
+considerCriticalMass = (id, artistId = 0) !->
+	# count last active
+	if id then artistId = Db.shared.get 'drawings', id, 'memberId'
+	lastWeek = 0|(Date.now()*.001 - 7*24*3600)
+	activeMembers = 0
+	for k, activeTime of Db.shared.get 'lastActive'
+		activeMembers++ if activeTime > lastWeek
+	if activeMembers <2 then activeMembers = 2 # at least two. (you and future members)
+
+	#if number of people guessed this drawing is 2/3 or more
+	if id?
+		m = Object.keys(Db.shared.get 'drawings', id, 'members').length
+		m++ # we count the artist as well
+	else
+		m = 1
+	if m > activeMembers*Config.guessRatio()
+		Db.personal(artistId).set 'wait', 0
+		Db.personal(artistId).set 'waitGuessed', 0
+	else
+		Db.personal(artistId).set 'waitGuessed', m = Math.ceil(activeMembers*Config.guessRatio()-m)
+	log artistId, ".", m, '/',activeMembers,"members have guessed."
+
 exports.client_addDrawing = (id, steps, time) !->
 	personalDb = Db.personal App.memberId()
 	#return if (personalDb.get 'currentDrawing') isnt id
@@ -88,7 +113,7 @@ exports.client_startDrawing = (cb) !->
 	personalDb = Db.personal App.memberId()
 	lastDrawing = personalDb.get('lastDrawing')||false
 
-	if !lastDrawing or lastDrawing.time+(Config.cooldown()) < Date.now()*.001 # first or at least 4 hours ago
+	if !lastDrawing or personalDb.get('wait')+Config.cooldown() < Date.now()*.001 # first or at least 4 hours ago
 
 		wordObj = WordList.getRndWordObjects 1, false # get one word
 		if not wordObj
@@ -102,7 +127,9 @@ exports.client_startDrawing = (cb) !->
 		lastDrawing = wordObj
 		lastDrawing.id = id
 		lastDrawing.time = 0|Date.now()*.001
-		Db.personal(App.memberId()).set 'lastDrawing', lastDrawing
+		personalDb.set 'lastDrawing', lastDrawing
+		personalDb.set 'wait', lastDrawing.time
+		considerCriticalMass null, App.memberId()
 		cb.reply lastDrawing
 	else
 		cb.reply false # no no no, you don't get to try again.
@@ -136,6 +163,8 @@ exports.client_getLetters = (drawingId, cb) !->
 	# We won't send the word, but an array of word lengths and a hash of it
 	hash = Config.simpleHash(word)
 	fields = WordList.getFields(wordId)
+
+	setLastActive memberId
 
 	cb.reply fields, hash, scrambledLetters
 
@@ -178,7 +207,8 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		log "answer was not correct",  word, 'vs', answer.replace(/\s/g, '')
 		submitForfeit (drawingId)
 
-	# add notice to the comments thread
+	setLastActive memberId
+	considerCriticalMass drawingId
 
 exports.client_submitForfeit = submitForfeit = (drawingId) !->
 	memberId = App.memberId()
@@ -186,6 +216,9 @@ exports.client_submitForfeit = submitForfeit = (drawingId) !->
 	Db.shared.set 'drawings', drawingId, 'members', memberId, -2
 	Db.shared.set 'scores', memberId, drawingId, 0
 	addWordToPersonal memberId, drawingId
+
+	setLastActive memberId
+	considerCriticalMass drawingId
 
 exports.client_getWord = (drawingId, cb) !->
 	time = Db.shared.get 'drawings', drawingId, 'members', App.memberId()
