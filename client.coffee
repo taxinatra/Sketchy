@@ -51,7 +51,14 @@ renderOverview = !->
 				content: !->
 					Dom.text tr("Wait ")
 					Time.deltaText t, 'duration'
-				sub: tr("Or %1 more guess your previous sketch", Db.personal.get('waitGuessed')||"")
+				sub: !->
+					wg = Db.personal.get('waitGuessed')
+					if wg>1
+						Dom.text tr("Or until %1 more people guessed your previous sketch", wg)
+					else if wg is 1
+						Dom.text tr("Or until %1 more person guessed your previous sketch", wg)
+					else
+						Dom.text tr("Or until more people guessed your previous sketch")
 				style: color: '#999'
 
 	Db.shared.iterate 'drawings', (drawing) !->

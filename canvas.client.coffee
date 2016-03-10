@@ -5,30 +5,38 @@ Config = require 'config'
 CANVAS_SIZE = Config.canvasSize()
 CANVAS_RATIO = Config.canvasRatio()
 
-exports.render = (touchHandler) !->
+exports.render = (touchHandler, unattached=false) !->
 	width = CANVAS_SIZE
 	height = CANVAS_SIZE*CANVAS_RATIO
 	steps = []
 	ctx = false
-	Dom.canvas !->
-		Dom.prop('width', width)
-		Dom.prop('height', height)
-		Dom.cls 'drawing-canvas'
-		cvs = Dom.get()
-		ctx = cvs.getContext '2d'
-		ctx.SmoothingEnabled = true
-		ctx.mozImageSmoothingEnabled = true
-		ctx.webkitImageSmoothingEnabled = true
-		ctx.msImageSmoothingEnabled = true
-		ctx.imageSmoothingEnabled = true
-		ctx.lineJoin = ctx.lineCap = 'round'
+	# if unattached
+		# cvs = Dom.unattached 'canvas'
+	# else
+	cvs = null
+	if true
+		Dom.canvas !->
+			Dom.prop('width', width)
+			Dom.prop('height', height)
+			Dom.cls 'drawing-canvas'
+			cvs = Dom.get()
+			if unattached
+				log "yup"
+				Dom.style display: 'none'
 
-		if touchHandler?
-			Dom.trackTouch touchHandler, cvs
+	ctx = cvs.getContext '2d'
+	ctx.SmoothingEnabled = true
+	ctx.mozImageSmoothingEnabled = true
+	ctx.webkitImageSmoothingEnabled = true
+	ctx.msImageSmoothingEnabled = true
+	ctx.imageSmoothingEnabled = true
+	ctx.lineJoin = ctx.lineCap = 'round'
 
-	cvsDom = Dom.last()
+	if touchHandler?
+		Dom.trackTouch touchHandler, cvs
 
 	drawStep = (step) !->
+		log "step", step
 		switch step.type
 			when 'move'
 				ctx.beginPath()
@@ -97,7 +105,7 @@ exports.render = (touchHandler) !->
 	return {
 		clear: clear
 		addStep: addStep
-		dom: cvsDom
+		dom: cvs
 	}
 
 Dom.css

@@ -247,6 +247,7 @@ exports.render = !->
 			'.tile':
 				display: 'inline-block'
 				padding: "#{padding}px"
+				_userSelect: 'none'
 
 			'.tileContent':
 				width: '32px'
