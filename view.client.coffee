@@ -55,7 +55,7 @@ exports.render = !->
 
 		state = 0
 		Dom.div !->
-			Dom.style minHeight: '105px'
+			Dom.style minHeight: '130px'
 			if drawingR.get('memberId') is App.memberId() # my drawing
 				Dom.h1 tr("Your sketch")
 				arr = (v for k, v of drawingR.get('members'))
@@ -120,7 +120,7 @@ exports.render = !->
 				Dom.text if points>1 then tr("points") else tr("point")
 			Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 		Dom.div !->
-			Dom.style textAlign: 'left', width:'100%', margin: 0, minHeight: '100px'
+			Dom.style textAlign: 'left', width:'100%', margin: 0, flexShrink: 0
 			drawingR.iterate 'members', (member) !->
 				return if member.get() is -1 # skip members who are currently guessing
 				Ui.item
@@ -193,7 +193,7 @@ exports.render = !->
 		renderScoreScreen()
 
 		Dom.div !->
-			Dom.style width: '100%', textAlign: 'left', _boxSizing: 'border-box', ChildMargin: 12
+			Dom.style width: '100%', textAlign: 'left', _boxSizing: 'border-box', ChildMargin: 12, marginBottom: 0
 			Comments.inline
 				store: ['drawings', drawingId, 'comments']
 				postRpc: 'post' # redirect to server.coffee
