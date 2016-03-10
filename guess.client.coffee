@@ -44,21 +44,8 @@ exports.render = !->
 		timer = Date.now()
 		initializedO.set true
 
-		Obs.interval 200, !->
-			timeUsedO.set Math.min((Date.now() - timer), GUESS_TIME)
-
-		Obs.onTime GUESS_TIME, !->
-			log "guesstimer expired"
-			if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
-				log "already submitted."
-				return
-			log "Forfeit by timer"
-			Server.sync 'submitForfeit', drawingId, !->
-				Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
-				Db.shared.set 'scores', App.memberId(), drawingId, 0
-			Page.nav {drawingId}
-
-	Obs.observe !->
+	# Obs.observe !-> # do in obs scope for cleanup
+	Dom.div !->
 		if initializedO.get()
 			Page.setBackConfirm
 				title: tr("Are you sure?")
@@ -67,6 +54,20 @@ exports.render = !->
 					Server.sync 'submitForfeit', drawingId, !->
 						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 						Db.shared.set 'scores', App.memberId(), drawingId, 0
+
+			Obs.interval 200, !->
+				timeUsedO.set Math.min((Date.now() - timer), GUESS_TIME)
+			, 200
+
+			Obs.onTime GUESS_TIME, !->
+				if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
+					log "already submitted."
+					return
+				log "Forfeit by timer"
+				Server.sync 'submitForfeit', drawingId, !->
+					Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
+					Db.shared.set 'scores', App.memberId(), drawingId, 0
+				Page.nav {drawingId}
 
 	Dom.style backgroundColor: '#DDD', height: '100%', Box: 'vertical'
 

@@ -55,13 +55,12 @@ exports.render = !->
 	timeUsed = Obs.create 0
 	size = 296 # render size of the canvas
 
-	Obs.observe !-> # needs to be in obs scope for cleaning reasons
+	Dom.div !-> # needs to be in obs scope for cleaning reasons
 		if startTime.get()
 			Form.setPageSubmit submit, true
 			Obs.onTime DRAW_TIME, submit
 		else if thinkTimer.get()
 			Obs.onTime THINK_TIME, !->
-				thinkTimer.set false
 				startTheClock()
 
 		Obs.interval 200, !->
@@ -86,6 +85,7 @@ exports.render = !->
 
 	startTheClock = !->
 		return if startTime.peek() isnt false # timer already running
+		thinkTimer.set false
 		startTime.set Date.now()
 
 		# time's started, let's do setup

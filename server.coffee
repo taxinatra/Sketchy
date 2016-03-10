@@ -172,7 +172,7 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 			word = if prefix then prefix + " " + word else word
 			Event.create
 				path: "/#{drawingId}"
-				text: tr("%1 guessed you drawing of %2 the fastest with %3 seconds.", App.memberName(memberId), word, time)
+				text: tr("%1 guessed your drawing of %2 the fastest with %3 seconds.", App.memberName(memberId), word, time)
 				for: [drawing.get('memberId')]
 	else
 		log "answer was not correct",  word, 'vs', answer.replace(/\s/g, '')
