@@ -40,17 +40,15 @@ exports.render = !->
 
 	drawingId = Page.state.get(0)
 	unless drawingId # if we have no id, error
+		log 'No drawing Id'
 		falseNavigationO.set true
 		return
 
 	drawingR = Db.shared.ref('drawings', drawingId)
+	myTime = drawingR.get('members', App.memberId())
 
 	Dom.style minHeight: '100%', background: "rgba(255, 255, 255, 1)"
 
-	myTime = drawingR.get('members', App.memberId())
-	unless myTime # if we have no id, error
-		falseNavigationO.set true
-		return
 	Dom.style
 		Box: 'vertical center'
 		textAlign: 'center'
@@ -84,6 +82,9 @@ exports.render = !->
 					Dom.text tr("You will be rewarded the same amount of points as the fastest player.")
 				state = 0
 		else # you have guessed
+			unless myTime # if we have no id, error
+				falseNavigationO.set true
+				return
 			if myTime >= 0
 				state = 2
 				Dom.h1 tr("Nice!")
@@ -152,6 +153,9 @@ exports.render = !->
 		Comments.inline
 			store: ['drawings', drawingId, 'comments']
 			postRpc: 'post' # redirect to server.coffee
+			messages:
+				correct: (c) -> tr("%1 guessed this sketch in %2 seconds!", c.user, c.value)
+				failed: (c) -> tr("%1 failed to guess this sketch", c.user)
 
 	Obs.observe !->
 		bg = backgroundO.get()

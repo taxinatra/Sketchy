@@ -176,6 +176,7 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 	memberId = App.memberId()
 	log "submitAnswer by", memberId, ":", drawingId, answer, time
 	startTime = Db.personal(memberId).get drawingId
+	return unless drawingId and answer and time # we need these
 	return if Date.now() < startTime # Timelords not allowed.
 	# We cannot set a timeframe, for the user might be without internet while guessing.
 
@@ -186,7 +187,6 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		# set artist's score if we have the highest
 		best = true
 		drawing.iterate 'members', (member) !->
-			# log "comparing my", time, "to", member.get(), ":", (time > member.get() and member.get()>=0)
 			best = false if time > member.get() and member.get()>=0 # skip -1/-2 timings
 		if best
 			log "we're the best. so score:", drawing.get('memberId'), Config.timeToScore(time)
@@ -204,12 +204,25 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 			prefix = WordList.getPrefix(wordId)
 			word = if prefix then prefix + " " + word else word
 			Event.create
-				path: "/#{drawingId}"
+				path: "/#{drawingId}?comments"
 				text: tr("%1 guessed your drawing of %2 the fastest with %3 seconds.", App.memberName(memberId), word, time)
 				for: [drawing.get('memberId')]
+
+		# generate sysMessage
+		Comments.post # no push notification
+			store: ['drawings', drawingId, 'comments']
+			u: memberId
+			s: 'correct'
+			value: time
 	else
 		log "answer was not correct",  word, 'vs', answer.replace(/\s/g, '')
 		submitForfeit (drawingId)
+		# generate sysMessage
+		log "generate sysMessage: failed"
+		Comments.post # no push notification
+			store: ['drawings', drawingId, 'comments']
+			u: memberId
+			s: 'failed'
 
 	setLastActive memberId
 	considerCriticalMass drawingId
@@ -220,6 +233,13 @@ exports.client_submitForfeit = submitForfeit = (drawingId) !->
 	Db.shared.set 'drawings', drawingId, 'members', memberId, -2
 	Db.shared.set 'scores', memberId, drawingId, 0
 	addWordToPersonal memberId, drawingId
+
+	# generate sysMessage
+	log "generate sysMessage: failed"
+	Comments.post # no push notification
+		store: ['drawings', drawingId, 'comments']
+		u: memberId
+		s: 'failed'
 
 	setLastActive memberId
 	considerCriticalMass drawingId
