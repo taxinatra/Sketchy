@@ -28,14 +28,23 @@ DRAW_TIME = Config.drawTime()
 
 exports.render = !->
 	myWordO = Obs.create false
+	falseNavigationO = Obs.create false
+	initializedO = Obs.create false
 	drawingId = false
+
+	Obs.observe !->
+		if falseNavigationO.get()
+			Ui.emptyText tr("It seems like you are not suppose to be here.")
+
 	Server.call 'startDrawing', (drawing) !->
 		if drawing is false
 			log "You don't belong here! Wait for your turn."
-			Page.up()
+			falseNavigationO.set true
+			return
 		if drawing is "out of words"
 			log "We're out of words. Sorry."
-			Page.up()
+			falseNavigationO.set true
+			return
 
 		drawingId = drawing.id
 		myWordO.set drawing

@@ -69,17 +69,22 @@ renderOverview = !->
 		item =
 			avatar: App.memberAvatar(memberId)
 			onTap: !-> Page.nav {0:drawing.key()}
-		if Event.isNew(drawing.get('time'))
+		isNew = Event.isNew(drawing.get('time'))
+		if isNew
 			item.style = color: '#5b0'
 
-		if memberId is yourId # own drawing
+		if memberId is yourId # own sketch
 			mem = drawing.get('members')
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				item.content = !->
-					Dom.userText tr("Your sketching of **%1**", what)
+					Dom.userText tr("You sketched ")
+					Dom.span !->
+						color = if isNew then '#5b0' else '#0077CF'
+						Dom.style color: color, fontWeight: 'bold'
+						Dom.text what
 			else
-				item.content = tr("Your sketching")
+				item.content = tr("Your sketch")
 			if mem
 				item.sub = !->
 					Dom.text tr("Guessed by ")
@@ -94,7 +99,12 @@ renderOverview = !->
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				item.content = !->
-					Dom.userText tr("%1 drew **%2**", App.memberName(memberId), what)
+					Dom.userText tr("%1 sketched ", App.memberName(memberId))
+					Dom.span !->
+						color = if isNew then '#5b0' else '#0077CF'
+						Dom.style color: color, fontWeight: 'bold'
+						Dom.text what
+					# Dom.userText tr("%1 sketched **%2**", App.memberName(memberId), what)
 			else
 				item.content = tr("Sketching by %1", App.memberName(memberId))
 			if state >= 0
@@ -105,9 +115,9 @@ renderOverview = !->
 					Event.renderBubble ['/'+drawing.key()+"?comments"]
 					View.renderPoints(Db.shared.get('scores', yourId, drawing.key()), 40)
 		else # no state, so not guessed yet
-			item.content = tr("Guess sketching by %1", App.memberName(memberId))
+			item.content = tr("Guess sketch by %1", App.memberName(memberId))
 			item.sub= !->
-				Dom.text "Drawn "
+				Dom.text "Sketched "
 				Time.deltaText(drawing.get('time'))
 			item.onTap = !->
 				Page.nav {0:'guess', '?drawing':drawing.key()}

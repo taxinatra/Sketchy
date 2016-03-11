@@ -35,12 +35,16 @@ exports.onUpgrade = !->
 		Db.shared.set "outOfWords", true
 		log "update: still out of words"
 
+	for memberId in App.memberIds()
+		for drawingId, word of Db.personal(memberId).get('words')
+			addWordToPersonal memberId, drawingId
+
 addWordToPersonal = (memberId, drawingId) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
 	word = WordList.getWord wordId, false
-	prefix = WordList.getPrefix(wordId)
-	value = if prefix then prefix + " " + word else word
-	Db.personal(memberId).set('words', drawingId, value)
+	# prefix = WordList.getPrefix(wordId)
+	# value = if prefix then prefix + " " + word else word
+	Db.personal(memberId).set('words', drawingId, word)
 
 membersToNotify = (id) ->
 	return 'all' if id <= 1
@@ -149,7 +153,7 @@ exports.client_getLetters = (drawingId, cb) !->
 
 	# write down when a user has started guessing
 	Db.personal(memberId).set drawingId, Date.now()
-	# set failed score. You can better this by providing the correct answer :)
+	# set failed score. You can better this by providing the correct answer
 	Db.shared.set 'drawings', drawingId, 'members', memberId, -1
 	Db.shared.set 'scores', memberId, drawingId, 0
 

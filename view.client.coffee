@@ -31,33 +31,29 @@ exports.renderPoints = renderPoints = (points, size, style=null) !->
 		Dom.text points
 
 exports.render = !->
-	drawingId = Page.state.get(0)
-	drawingR = Db.shared.ref('drawings', drawingId)
+	falseNavigationO = Obs.create false
 	backgroundO = Obs.create ""
 
-	Dom.style minHeight: '100%'
+	Obs.observe !->
+		if falseNavigationO.get()
+			Ui.emptyText tr("It seems like you are not suppose to be here.")
 
-	# overlay = (cb) !->
-	# 	Dom.style
-	# 		# position: 'absolute'
-	# 		# top: 0
-	# 		width: '100%'
-	# 		height: '100%'
-	# 		margin: 0
-	# 		ChildMargin: 16
-	# 		Box: 'middle center'
-	# 		background: "rgba(255, 255, 255, 0.9)"
-	# 		color: 'black'
-	# 	cb()
+	drawingId = Page.state.get(0)
+	unless drawingId # if we have no id, error
+		falseNavigationO.set true
+		return
+
+	drawingR = Db.shared.ref('drawings', drawingId)
+
+	Dom.style minHeight: '100%', background: "rgba(255, 255, 255, 1)"
 
 	myTime = drawingR.get('members', App.memberId())
+	unless myTime # if we have no id, error
+		falseNavigationO.set true
+		return
 	Dom.style
 		Box: 'vertical center'
 		textAlign: 'center'
-		backgroundSize: 'cover'
-		backgroundPosition: "50% 50%"
-	Obs.observe !->
-		Dom.style backgroundImage: "url(" + backgroundO.get() + ")"
 
 	state = 0
 	Dom.div !->
@@ -113,18 +109,19 @@ exports.render = !->
 					wordO.set word
 				else
 					log "You haven't guessed this question, but requested the answer. That's not very nice."
-					Page.up()
+					falseNavigationO.set true
 
 	return if state is 0 # lack of goto :p
 	Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 	if state is 2
-		Dom.div !->
-			Dom.style Box: 'vertical center', minHeight: '116px'
-			Dom.text tr("This earned you")
-			points = Db.shared.get('scores', App.memberId(), drawingId)||0
-			renderPoints(points, 60, {margin:'12px 12px 4px'}) # points, size, style
-			Dom.text if points>1 then tr("points") else tr("point")
-		Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
+		points = Db.shared.get('scores', App.memberId(), drawingId)
+		if points
+			Dom.div !->
+				Dom.style Box: 'vertical center', minHeight: '116px'
+				Dom.text tr("This earned you")
+				renderPoints(points, 60, {margin:'12px 12px 4px'}) # points, size, style
+				Dom.text if points>1 then tr("points") else tr("point")
+			Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 	Dom.div !->
 		Dom.style textAlign: 'left', width:'100%', margin: 0, flexShrink: 0
 		drawingR.iterate 'members', (member) !->
@@ -151,33 +148,30 @@ exports.render = !->
 	Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 
 	Dom.div !->
-		Dom.style width: '100%', textAlign: 'left', _boxSizing: 'border-box', ChildMargin: 12, marginBottom: 0
+		Dom.style width: '100%', textAlign: 'left', _boxSizing: 'border-box', ChildMargin: 12, margin: 0
 		Comments.inline
 			store: ['drawings', drawingId, 'comments']
 			postRpc: 'post' # redirect to server.coffee
 
+	Obs.observe !->
+		bg = backgroundO.get()
+		if bg
+			Page.setBackground "no-repeat center url(" + bg + ")"
+			Dom.transition background: "rgba(255, 255, 255, 0.9)"
+
 	# invisible canvas
-
-	cvs = Canvas.render null, true # render canvas
-	thisE = Dom.get()
-
+	cvs = Canvas.render null, true # render canvas in stealth mode
 	# draw the image slightly delayed so the main render doesn't wait for it
-	setTimeout !->
-		steps = drawingR.get('steps')
-		return unless steps
-		startTime = Date.now()
-		steps = steps.split(';')
-		for data in steps then do (data) !->
-			step = Canvas.decode(data)
-			now = (Date.now() - startTime)
-			# speed times 8!
-			if step.time/100 > now
-				Obs.onTime (step.time/100 - now), !->
-					cvs.addStep step
-			else
+	Dom.div !-> # obs scope for onClean
+		Obs.onTime 500, !->
+			steps = drawingR.get('steps')
+			return unless steps
+			startTime = Date.now()
+			steps = steps.split(';')
+			for data in steps then do (data) !->
+				step = Canvas.decode(data)
+				now = (Date.now() - startTime)
 				cvs.addStep step
-		setTimeout !->
-			log "Drawn. Cenver to png."
-			backgroundO.set cvs.dom.toDataURL()
-		, (Config.drawTime()+1)/100
-	, 500
+
+			log "Drawn. Canvas to png."
+			backgroundO.set cvs.dom.toDataUrl()

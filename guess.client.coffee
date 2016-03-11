@@ -25,17 +25,29 @@ exports.render = !->
 	length = 0 # total number of letters in the answer
 	initializedO = Obs.create false
 	incorrectO = Obs.create false
+	falseNavigationO = Obs.create false
 	timer = 0
 	timeUsedO = Obs.create 0
 
+	Obs.observe !->
+		if falseNavigationO.get()
+			Ui.emptyText tr("It seems like you are not suppose to be here.")
+
+	unless drawingId # if we have no id, error
+		falseNavigationO.set true
+		return
+
 	# ask the server for the info we need. The server will also note down the member started guessing.
 	drawingR = Db.shared.ref('drawings', drawingId)
-	return unless drawingR.get('steps') # check if we have steps
+	unless drawingR.get('steps') # if we have no steps, error
+		falseNavigationO.set true
+		return
 
 	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters) !->
+		log "gotLetters"
 		unless _fields
 			log "got null from server. word is either illegal or we already guessed this sketching"
-			Page.up()
+			falseNavigationO.set true
 			return
 		fields = _fields
 		solutionHash = _solutionHash
@@ -67,7 +79,7 @@ exports.render = !->
 				Server.sync 'submitForfeit', drawingId, !->
 					Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 					Db.shared.set 'scores', App.memberId(), drawingId, 0
-				Page.nav {drawingId}
+				Page.nav {0:drawingId}
 
 	Dom.style backgroundColor: '#DDD', height: '100%', Box: 'vertical'
 
@@ -140,7 +152,7 @@ exports.render = !->
 						log "Correct answer! in", timer, 'sec'
 						Server.sync 'submitAnswer', drawingId, solution, timer, !->
 							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
-							Db.shared.set 'scores', App.memberId(), drawingId
+							Db.shared.set 'scores', App.memberId(), drawingId, Config.timeToScore(timer)
 
 						Page.nav {0:drawingId}
 					else
@@ -153,7 +165,6 @@ exports.render = !->
 				Dom.div !->
 					Dom.style
 						margin: "0 auto"
-						# maxWidth: '388px'
 					renderGuessing chosenLettersO, lettersO
 		else
 			Ui.emptyText tr("Loading ...")
@@ -168,32 +179,6 @@ exports.render = !->
 
 	renderGuessing = (chosenLettersO, remainingLettersO) !->
 		renderTiles = (fromO, toO, format=false) !->
-			# if format
-			# 	l = 0
-			# 	for i in fields
-			# 		Dom.div !->
-			# 			Dom.style
-			# 				display: 'inline-block'
-			# 				margin: "0 6px"
-			# 			for j in [0...i] then do (l, j) !->
-			# 				Dom.div !->
-			# 					Dom.addClass 'tile'
-			# 					k = l+j
-			# 					letter = fromO.get(k)
-			# 					if letter then Dom.onTap !-> moveTile fromO, toO, k
-			# 					Dom.div !->
-			# 						Dom.addClass 'tileContent'
-			# 						Obs.observe !->
-			# 							if letter
-			# 								Dom.addClass 'letter'
-			# 								Dom.removeClass 'empty'
-			# 								Dom.text fromO.get(k)
-			# 							else
-			# 								Dom.addClass 'empty'
-			# 								Dom.removeClass 'letter'
-			# 								Dom.text '-'
-			# 			l+=i
-			# else
 			for i in [0...fromO.get('count')] then do (i) !->
 				Dom.div !->
 					Dom.addClass 'tile'
@@ -234,7 +219,6 @@ exports.render = !->
 				size: 18
 				style:
 					padding: '3px'
-					# margin: "0 5px #{2+padding}px 0"
 					marginRight: '5px'
 					border: "1px solid white"
 					borderRadius: '2px'

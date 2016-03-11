@@ -5,24 +5,19 @@ Config = require 'config'
 CANVAS_SIZE = Config.canvasSize()
 CANVAS_RATIO = Config.canvasRatio()
 
-exports.render = (touchHandler, unattached=false) !->
+exports.render = (touchHandler, hidden=false) !->
 	width = CANVAS_SIZE
 	height = CANVAS_SIZE*CANVAS_RATIO
 	steps = []
-	ctx = false
-	# if unattached
-		# cvs = Dom.unattached 'canvas'
-	# else
-	cvs = null
-	if true
-		Dom.canvas !->
-			Dom.prop('width', width)
-			Dom.prop('height', height)
-			Dom.cls 'drawing-canvas'
-			cvs = Dom.get()
-			if unattached
-				log "yup"
-				Dom.style display: 'none'
+	ctx = cvs = null
+	Dom.canvas !->
+		Dom.prop('width', width)
+		Dom.prop('height', height)
+		Dom.cls 'drawing-canvas'
+		cvs = Dom.get()
+		if hidden then Dom.style display: 'none' # hide
+		# Unattached to the DOM would be prefferable.
+		# But in that case, toDataURL will present an empty png.
 
 	ctx = cvs.getContext '2d'
 	ctx.SmoothingEnabled = true
@@ -36,7 +31,7 @@ exports.render = (touchHandler, unattached=false) !->
 		Dom.trackTouch touchHandler, cvs
 
 	drawStep = (step) !->
-		log "step", step
+		# log "step", step
 		switch step.type
 			when 'move'
 				ctx.beginPath()
