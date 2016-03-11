@@ -45,6 +45,10 @@ exports.render = !->
 
 	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters) !->
 		log "gotLetters"
+		if _fields is "time"
+			log "Your time is up"
+			Page.nav {0:drawingId}
+			return
 		unless _fields
 			log "got null from server. word is either illegal or we already guessed this sketching"
 			falseNavigationO.set true
@@ -53,7 +57,7 @@ exports.render = !->
 		solutionHash = _solutionHash
 		length += i for i in fields
 		lettersO.set _letters
-		timer = Date.now()
+		timer = Db.personal.peek(drawingId)||Date.now() # continue or start new
 		initializedO.set true
 
 	# Obs.observe !-> # do in obs scope for cleanup
@@ -71,9 +75,10 @@ exports.render = !->
 				timeUsedO.set Math.min((Date.now() - timer), GUESS_TIME)
 			, 200
 
-			Obs.onTime GUESS_TIME, !->
+			Obs.onTime GUESS_TIME-(Date.now() - timer), !->
 				if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
 					log "already submitted."
+					Page.nav {0:drawingId}
 					return
 				log "Forfeit by timer"
 				Server.sync 'submitForfeit', drawingId, !->
@@ -87,52 +92,15 @@ exports.render = !->
 		if initializedO.get()
 			Timer.render GUESS_TIME, timeUsedO
 
-			cvs = null
+			cvs = Canvas.render null # render canvas
 
-			Dom.div !->
-				Dom.style
-					position: 'relative'
-					margin: "0 auto"
-					Flex: true
-					overflow: 'hidden'
-				size = 296
-				containerE = Dom.get()
-				Obs.observe !->
-					# observe window size
-					Page.width()
-					Page.height()
-					Obs.nextTick !-> # set size
-						width = containerE.width()
-						height = containerE.height()
-						size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
-						containerE.style
-							width: size+'px'
-							height: size*CANVAS_RATIO+'px'
-							Flex: false
-							margin: "auto auto"
-				cvs = Canvas.render null # render canvas
-
-				Obs.observe !->
-					return unless incorrectO.get()
-					Dom.div !->
-						Dom.style
-							position: 'absolute'
-							bottom: '10px'
-							left: size/2-67
-							textAlign: 'center'
-							background: 'black'
-							color: 'white'
-							borderRadius: '2px'
-							padding: '4px 8px'
-						Dom.text tr("That is incorrect")
-
-			startTime = Date.now()
+			log "startTime", timer, Date.now()
 			steps = drawingR.get('steps')
 			return unless steps
 			steps = steps.split(';')
 			for data in steps then do (data) !->
 				step = Canvas.decode(data)
-				now = Date.now() - startTime
+				now = Date.now() - timer
 				if step.time > now
 					Obs.onTime (step.time - now), !->
 						cvs.addStep step
@@ -161,7 +129,24 @@ exports.render = !->
 					incorrectO.set false
 
 			Dom.div !->
-				Dom.style background: '#666', margin: 0
+				Dom.style background: '#666', margin: 0, position: 'relative'
+
+				Obs.observe !->
+					return unless incorrectO.get()
+					Dom.div !->
+						Dom.style
+							position: 'absolute'
+							bottom: '10px'
+							left: Page.width()/2-67
+							top: '-40px'
+							height: '23px'
+							textAlign: 'center'
+							background: 'black'
+							color: 'white'
+							borderRadius: '2px'
+							padding: '4px 8px'
+						Dom.text tr("That is incorrect")
+
 				Dom.div !->
 					Dom.style
 						margin: "0 auto"

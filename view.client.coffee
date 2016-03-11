@@ -3,6 +3,7 @@ Canvas = require 'canvas'
 Comments = require 'comments'
 Db = require 'db'
 Dom = require 'dom'
+Icon = require 'icon'
 Modal = require 'modal'
 Obs = require 'obs'
 Page = require 'page'
@@ -54,78 +55,131 @@ exports.render = !->
 		textAlign: 'center'
 
 	state = 0
-	Dom.div !->
-		Dom.style minHeight: '130px'
-		if drawingR.get('memberId') is App.memberId() # my drawing
-			Dom.h1 tr("Your sketch")
-			arr = (v for k, v of drawingR.get('members'))
-			lowestTime = 99
-			for i in arr
-				if (i<lowestTime and i>=0) then lowestTime = i
-			if arr.length
-				if lowestTime is 99
-					Dom.text tr("has not been successfully guessed yet")
-					Dom.div !->
-						Dom.style color: '#777', margin: '12px'
-						Dom.text tr("You will be rewarded the same amount of points as the fastest player.")
-					state = 1
-				else
-					Dom.text tr("has been guessed in %1 second|s", lowestTime)
-					Dom.div !->
-						Dom.style color: '#777', margin: '12px'
-						Dom.text tr("You are awarded the same amount of points as the fastest player.")
-					state = 2
+
+	renderTop = (opts) !->
+		Dom.div !->
+			Dom.style minHeight: '72px'
+			Dom.h1 opts.header if opts.header
+			Dom.text opts.content if opts.content
+			if opts.content2
+				Dom.br()
+				Dom.br()
+				Dom.text opts.content2
+
+	renderAnswer = (drawingId) !->
+		wordO = Obs.create false
+		Dom.div !->
+			Dom.style
+				position: 'relative'
+				width: '100%'
+			if word = wordO.get()
+				Dom.h2 !->
+					Dom.style fontSize: '28px', textTransform: 'uppercase'
+					Dom.text word
 			else
-				Dom.text tr("has not been guessed yet")
+				Dom.style height: '49px'
+
+			Icon.render
+				data: 'play'
+				size: 28
+				style:
+					position: 'absolute'
+					top: '3px'
+					right: '6px'
+					padding: '6px'
+					borderRadius: '50%'
+				onTap: !->
+					Page.nav !-> Dom.div !->
+						Dom.style
+							margin: 0
+							height: '100%'
+							width: '100%'
+							Box: "center midden"
+							background: '#DDD'
+						cvs = Canvas.render null # render canvas
+						steps = Db.shared.get('drawings', drawingId, 'steps')
+						Page.back() unless steps
+						steps = steps.split(';')
+						startTime = Date.now()
+						for data in steps then do (data) !->
+							step = Canvas.decode(data)
+							now = (Date.now() - startTime)
+							if step.time > now
+								Obs.onTime (step.time - now)/6, !->
+									cvs.addStep step
+							else
+								cvs.addStep step
+		Server.call "getWord", drawingId, (word) !->
+			if word
+				wordO.set word
+			else
+				log "You haven't guessed this question, but requested the answer. That's not very nice."
+				falseNavigationO.set true
+
+	renderScore = (drawingId) !->
+		points = Db.shared.get('scores', App.memberId(), drawingId)
+		Dom.div !->
+			Dom.style Box: 'vertical center', minHeight: '116px'
+			Dom.text tr("This earned you")
+			if points
+				renderPoints(points, 60, {margin:'12px 12px 4px'}) # points, size, style
+			Dom.text if points>1 then tr("points") else tr("point")
+
+
+	if drawingR.get('memberId') is App.memberId() # my drawing
+		arr = (v for k, v of drawingR.get('members'))
+		lowestTime = 99
+		for i in arr
+			if (i<lowestTime and i>=0) then lowestTime = i
+		if arr.length
+			if lowestTime is 99
+				renderTop
+					header: tr("Your sketch")
+					content: tr("has not been successfully guessed yet")
+				renderAnswer drawingId
 				Dom.div !->
 					Dom.style color: '#777', margin: '12px'
 					Dom.text tr("You will be rewarded the same amount of points as the fastest player.")
-				state = 0
-		else # you have guessed
-			unless myTime # if we have no id, error
-				falseNavigationO.set true
-				return
-			if myTime >= 0
-				state = 2
-				Dom.h1 tr("Nice!")
-				Dom.text tr("It took you %1 seconds to guess:", 
-					myTime)
-			else # failed to guess
-				state = 1
-				Dom.h1 tr("Too bad")
-				Dom.text tr("You have not guessed it correctly.")
-				Dom.br()
-				Dom.br()
-				Dom.text tr("The correct answer was:")
-
-			wordO = Obs.create false
-			Dom.h2 !->
-				if word = wordO.get()
-					Dom.style fontSize: '28px', textTransform: 'uppercase'
-					Dom.text word
-				else
-					Dom.style height: '49px'
-			Server.call "getWord", drawingId, (word) !->
-				if word
-					wordO.set word
-				else
-					log "You haven't guessed this question, but requested the answer. That's not very nice."
-					falseNavigationO.set true
-
-	return if state is 0 # lack of goto :p
-	Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
-	if state is 2
-		points = Db.shared.get('scores', App.memberId(), drawingId)
-		if points
+			else
+				renderTop
+					header: tr("Your sketch")
+					content: tr("has been guessed in %1 second|s", lowestTime)
+				renderAnswer drawingId
+				Dom.div !->
+					Dom.style color: '#777', margin: '12px'
+					Dom.text tr("You are awarded the same amount of points as the fastest player.")
+				renderScore drawingId,
+		else
+			renderTop
+				header: tr("Your sketch")
+				content: tr("has not been guessed yet")
+			renderAnswer drawingId
 			Dom.div !->
-				Dom.style Box: 'vertical center', minHeight: '116px'
-				Dom.text tr("This earned you")
-				renderPoints(points, 60, {margin:'12px 12px 4px'}) # points, size, style
-				Dom.text if points>1 then tr("points") else tr("point")
-			Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
+				Dom.style color: '#777', margin: '12px'
+				Dom.text tr("You will be rewarded the same amount of points as the fastest player.")
+	else # you have guessed
+		unless myTime # if we have no id, error
+			falseNavigationO.set true
+			return
+		if myTime >= 0
+			renderTop
+				header: tr("Nice!")
+				content: tr("It took you %1 seconds to guess:", 
+				myTime)
+			renderAnswer drawingId
+			renderScore drawingId
+		else # failed to guess
+			renderTop
+				header: tr("Too bad")
+				content: tr("You have not guessed it correctly.")
+				content2: tr("The correct answer was:")
+			renderAnswer drawingId
+
+	Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
 	Dom.div !->
 		Dom.style textAlign: 'left', width:'100%', margin: 0, flexShrink: 0
 		drawingR.iterate 'members', (member) !->
+			log "member", member.get()
 			return if member.get() is -1 # skip members who are currently guessing
 			Ui.item
 				prefix: !-> renderPoints(Db.shared.get('scores', member.key(), drawingId)||0, 40, {marginRight:'12px'})
@@ -146,7 +200,7 @@ exports.render = !->
 			s = member.peek()
 			if s <0 then s = 999
 			return s
-	Dom.div !->	Dom.style Flex: true, minHeight: '20px' # fill
+	Dom.div !->	Dom.style Flex: true, minHeight: '16px' # fill
 
 	Dom.div !->
 		Dom.style width: '100%', textAlign: 'left', _boxSizing: 'border-box', ChildMargin: 12, margin: 0
@@ -164,18 +218,16 @@ exports.render = !->
 			Dom.transition background: "rgba(255, 255, 255, 0.9)"
 
 	# invisible canvas
-	cvs = Canvas.render null, true # render canvas in stealth mode
+	cvs = Canvas.render null, true, false # render canvas in stealth mode
 	# draw the image slightly delayed so the main render doesn't wait for it
 	Dom.div !-> # obs scope for onClean
+		Dom.style margin:0
 		Obs.onTime 500, !->
 			steps = drawingR.get('steps')
 			return unless steps
-			startTime = Date.now()
 			steps = steps.split(';')
 			for data in steps then do (data) !->
-				step = Canvas.decode(data)
-				now = (Date.now() - startTime)
-				cvs.addStep step
+				cvs.addStep Canvas.decode(data)
 
 			log "Drawn. Canvas to png."
 			backgroundO.set cvs.dom.toDataUrl()

@@ -95,7 +95,7 @@ renderOverview = !->
 			else
 				item.sub = !->
 					Dom.text tr("Guessed by no one yet")
-		else if state? # you've guessed it
+		else if state? and state isnt -1 # you've guessed it
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				item.content = !->

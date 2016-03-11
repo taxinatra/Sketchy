@@ -253,7 +253,8 @@ exports.render = !->
 			height = Page.height()-3-40-80 # margin, top, shelf
 			size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
 			Dom.style width: size+'px', height: size*CANVAS_RATIO+'px'
-		cvs = Canvas.render touchHandler # render canvas
+		# render canvas, not hidden, but not responsive
+		cvs = Canvas.render touchHandler, false, false
 
 		Dom.div !->
 			return if startTime.get()

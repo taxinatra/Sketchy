@@ -1,23 +1,56 @@
 Dom = require 'dom'
+Obs = require 'obs'
+Page = require 'page'
 
 Config = require 'config'
 
 CANVAS_SIZE = Config.canvasSize()
 CANVAS_RATIO = Config.canvasRatio()
 
-exports.render = (touchHandler, hidden=false) !->
+exports.render = (touchHandler, hidden=false, responsive=true) !->
 	width = CANVAS_SIZE
 	height = CANVAS_SIZE*CANVAS_RATIO
 	steps = []
 	ctx = cvs = null
-	Dom.canvas !->
-		Dom.prop('width', width)
-		Dom.prop('height', height)
-		Dom.cls 'drawing-canvas'
-		cvs = Dom.get()
-		if hidden then Dom.style display: 'none' # hide
-		# Unattached to the DOM would be prefferable.
-		# But in that case, toDataURL will present an empty png.
+
+	Dom.div !-> # define container
+		if responsive# we don't need to resize if we're hidden
+			containerE = Dom.get()
+			Obs.observe !->
+				# observe window size
+				Page.width()
+				Page.height()
+				Dom.style
+					position: 'relative'
+					margin: "0 auto"
+					Flex: true
+					overflow: 'hidden'
+					width: ''
+					height: ''
+				Obs.observe !->
+					Obs.nextTick !-> # set size
+						width = containerE.width()
+						height = containerE.height()
+						size = if height<(width*CANVAS_RATIO) then height/CANVAS_RATIO else width
+						containerE.style
+							width: size+'px'
+							height: size*CANVAS_RATIO+'px'
+							Flex: false
+							margin: "auto auto"
+
+		# make canvas
+		Dom.canvas !->
+			Dom.prop('width', width)
+			Dom.prop('height', height)
+			Dom.style
+				backgroundColor: '#DDD'
+				width: '100%'
+				height: '100%'
+				cursor: 'crosshair'
+			cvs = Dom.get()
+			if hidden then Dom.style display: 'none' # hide
+			# Unattached to the DOM would be prefferable.
+			# But in that case, toDataURL will present an empty png.
 
 	ctx = cvs.getContext '2d'
 	ctx.SmoothingEnabled = true
@@ -102,13 +135,6 @@ exports.render = (touchHandler, hidden=false) !->
 		addStep: addStep
 		dom: cvs
 	}
-
-Dom.css
-	'.drawing-canvas':
-		backgroundColor: '#DDD'
-		width: '100%'
-		height: '100%'
-		cursor: 'crosshair'
 
 exports.encode = (step) ->
 	line = ""

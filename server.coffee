@@ -35,16 +35,17 @@ exports.onUpgrade = !->
 		Db.shared.set "outOfWords", true
 		log "update: still out of words"
 
-	for memberId in App.memberIds()
-		for drawingId, word of Db.personal(memberId).get('words')
-			addWordToPersonal memberId, drawingId
+	# for memberId in App.memberIds()
+	# 	log "adding words", memberId
+	# 	for drawingId, word of Db.personal(memberId).get('words')
+	# 		addWordToPersonal memberId, drawingId
 
 addWordToPersonal = (memberId, drawingId) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
 	word = WordList.getWord wordId, false
-	# prefix = WordList.getPrefix(wordId)
-	# value = if prefix then prefix + " " + word else word
-	Db.personal(memberId).set('words', drawingId, word)
+	prefix = WordList.getPrefix(wordId)
+	value = if prefix then prefix + " " + word else word
+	Db.personal(memberId).set('words', drawingId, value)
 
 membersToNotify = (id) ->
 	return 'all' if id <= 1
@@ -144,15 +145,25 @@ exports.client_getLetters = (drawingId, cb) !->
 	word = WordList.getWord wordId
 	memberId = App.memberId()
 
-	if Db.personal(memberId).get drawingId # already started
-		cb.reply null
+	# Timelords not allowed.
+	startTime = Db.personal(memberId).get drawingId
+	log "startTime", 0, Date.now()-startTime, Config.guessTime()*2
+	if Date.now() < startTime and Date.now() > startTime + Config.guessTime()*2
+		submitForfeit (drawingId)
+		cb.reply "time"
 		return null
 	unless word # we need a word
 		cb.reply null
 		return null
+	# already submitted an answer
+	if (Db.shared.get('drawings', drawingId, 'members', memberId)||-1) isnt -1
+		log "member", memberId, "already submitted", drawingId
+		cb.reply null
+		return null
 
 	# write down when a user has started guessing
-	Db.personal(memberId).set drawingId, Date.now()
+	unless startTime
+		Db.personal(memberId).set drawingId, Date.now()
 	# set failed score. You can better this by providing the correct answer
 	Db.shared.set 'drawings', drawingId, 'members', memberId, -1
 	Db.shared.set 'scores', memberId, drawingId, 0
@@ -174,11 +185,14 @@ exports.client_getLetters = (drawingId, cb) !->
 
 exports.client_submitAnswer = (drawingId, answer, time) !->
 	memberId = App.memberId()
-	log "submitAnswer by", memberId, ":", drawingId, answer, time
-	startTime = Db.personal(memberId).get drawingId
 	return unless drawingId and answer and time # we need these
-	return if Date.now() < startTime # Timelords not allowed.
-	# We cannot set a timeframe, for the user might be without internet while guessing.
+
+	# Timelords not allowed.
+	duration = Date.now() - Db.personal(memberId).get drawingId||0
+	log "submitAnswer by", memberId, ":", drawingId, answer, time, duration
+	if duration < 0 or duration > Config.guessTime()*2
+		submitForfeit (drawingId)
+		return
 
 	drawing = Db.shared.ref 'drawings', drawingId
 	wordId = drawing.get('wordId')
@@ -217,12 +231,6 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 	else
 		log "answer was not correct",  word, 'vs', answer.replace(/\s/g, '')
 		submitForfeit (drawingId)
-		# generate sysMessage
-		log "generate sysMessage: failed"
-		Comments.post # no push notification
-			store: ['drawings', drawingId, 'comments']
-			u: memberId
-			s: 'failed'
 
 	setLastActive memberId
 	considerCriticalMass drawingId
@@ -245,8 +253,10 @@ exports.client_submitForfeit = submitForfeit = (drawingId) !->
 	considerCriticalMass drawingId
 
 exports.client_getWord = (drawingId, cb) !->
-	time = Db.shared.get 'drawings', drawingId, 'members', App.memberId()
-	if time and time isnt -1 # -1 is 'currently guessing'
+	drawingR = Db.shared.ref 'drawings', drawingId
+	artist = drawingR.get 'memberId'
+	time = drawingR.get 'members', App.memberId()
+	if (artist is App.memberId()) or (time and time isnt -1) # -1 is 'currently guessing'
 		wordId = Db.shared.get 'drawings', drawingId, 'wordId'
 		word = WordList.getWord wordId, false
 		cb.reply word
