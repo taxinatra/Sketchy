@@ -77,8 +77,8 @@ renderOverview = !->
 			mem = drawing.get('members')
 			what = Db.personal.get('words', drawing.key())||false
 			if what
-				r = /^(a[a-z]?)?\s(.*)$/i.exec what
-				prefix = r[1] + " "
+				r = /^(a[a-z]?)?\s?(.*)$/i.exec what
+				prefix = if [1] then r[1] + " " else ""
 				what = r[2]
 				item.content = !->
 					Dom.userText tr("You sketched %1", prefix)
@@ -101,8 +101,8 @@ renderOverview = !->
 		else if state? and state isnt -1 # you've guessed it
 			what = Db.personal.get('words', drawing.key())||false
 			if what
-				r = /^(a[a-z]?)?\s(.*)$/i.exec what
-				prefix = r[1] + " "
+				r = /^(a[a-z]?)?\s?(.*)$/i.exec what
+				prefix = if [1] then r[1] + " " else ""
 				what = r[2]
 
 				item.content = !->

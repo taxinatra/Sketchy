@@ -57,7 +57,13 @@ exports.render = !->
 		solutionHash = _solutionHash
 		length += i for i in fields
 		lettersO.set _letters
-		timer = Db.personal.peek(drawingId)||Date.now() # continue or start new
+		savedTimer = Db.personal.peek(drawingId)||0
+		now = Date.now()
+		if now < savedTimer # This can only happen by time difference between server and client
+			timer = now
+		else
+			timer = savedTimer
+		log "savedTimer:", savedTimer, "now:", now, "timer:", timer
 		initializedO.set true
 
 	# Obs.observe !-> # do in obs scope for cleanup
@@ -72,8 +78,8 @@ exports.render = !->
 						Db.shared.set 'scores', App.memberId(), drawingId, 0
 
 			Obs.interval 200, !->
+				# log "timer", Date.now(), timer, Date.now()-timer, GUESS_TIME
 				timeUsedO.set Math.min((Date.now() - timer), GUESS_TIME)
-			, 200
 
 			Obs.onTime GUESS_TIME-(Date.now() - timer), !->
 				if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
