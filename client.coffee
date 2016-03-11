@@ -77,8 +77,11 @@ renderOverview = !->
 			mem = drawing.get('members')
 			what = Db.personal.get('words', drawing.key())||false
 			if what
+				r = /^(a[a-z]?)?\s(.*)$/i.exec what
+				prefix = r[1] + " "
+				what = r[2]
 				item.content = !->
-					Dom.userText tr("You sketched ")
+					Dom.userText tr("You sketched %1", prefix)
 					Dom.span !->
 						color = if isNew then '#5b0' else '#0077CF'
 						Dom.style color: color, fontWeight: 'bold'
@@ -98,13 +101,16 @@ renderOverview = !->
 		else if state? and state isnt -1 # you've guessed it
 			what = Db.personal.get('words', drawing.key())||false
 			if what
+				r = /^(a[a-z]?)?\s(.*)$/i.exec what
+				prefix = r[1] + " "
+				what = r[2]
+
 				item.content = !->
-					Dom.userText tr("%1 sketched ", App.memberName(memberId))
+					Dom.userText tr("%1 sketched %2", App.memberName(memberId), prefix)
 					Dom.span !->
 						color = if isNew then '#5b0' else '#0077CF'
 						Dom.style color: color, fontWeight: 'bold'
 						Dom.text what
-					# Dom.userText tr("%1 sketched **%2**", App.memberName(memberId), what)
 			else
 				item.content = tr("Sketching by %1", App.memberName(memberId))
 			if state >= 0
