@@ -214,7 +214,7 @@ exports.render = !->
 	Obs.observe !->
 		bg = backgroundO.get()
 		if bg
-			Page.setBackground "no-repeat center url(" + bg + ")"
+			Page.setBackground "no-repeat 50% 50% url(" + bg + ")"
 			Dom.transition background: "rgba(255, 255, 255, 0.9)"
 
 	# invisible canvas
