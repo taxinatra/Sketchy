@@ -33,26 +33,13 @@ WordList = require 'wordLists'
 #			prefix: <a/an/"">
 
 exports.onUpgrade = !->
-	# wordObj = WordList.getRndWordObjects 1, false # get one word
-	# if wordObj
-	# 	Db.shared.set "outOfWords", false
-	# 	log "update: we have words available"
-	# else
-	# 	Db.shared.set "outOfWords", true
-	# 	log "update: still out of words"
-
-	Db.shared.set 'wordList', 'en1'
-
-	Db.shared.iterate 'drawings', (drawing) !->
-		oldId = drawing.get('wordId')
-		r = /^(.*)?_(.*)$/i.exec oldId
-		oldId = if (""+oldId).length>3 then r[2] else oldId
-		newId = 'en1_'+oldId
-		drawing.set 'wordId', newId
-		Db.backend.set 'words', drawing.key(), {
-			word: WordList.getWord newId, false # raw word
-			prefix: WordList.getPrefix newId
-		}
+	wordObj = WordList.getRndWordObjects 1, false # get one word
+	if wordObj
+		Db.shared.set "outOfWords", false
+		log "update: we have words available"
+	else
+		Db.shared.set "outOfWords", true
+		log "update: still out of words"
 
 	# reset words in personal storage
 	# for memberId in App.memberIds()
@@ -60,7 +47,7 @@ exports.onUpgrade = !->
 	# 	for drawingId, word of Db.personal(memberId).get('words')
 	# 		addWordToPersonal memberId, drawingId
 
-exports.onConfig = (config) !->
+exports.onConfig = exports.onInstall = (config) !->
 	Db.shared.set 'wordList', config['wordList']
 
 addWordToPersonal = (memberId, drawingId) !->
