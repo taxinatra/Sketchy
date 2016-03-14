@@ -26,6 +26,10 @@ CANVAS_RATIO = Config.canvasRatio()
 THINK_TIME = Config.thinkingTime()
 DRAW_TIME = Config.drawTime()
 
+timeDelta = Date.now()-App.time()*1000
+getTime = ->
+	Date.now()-timeDelta
+
 exports.render = !->
 	myWordO = Obs.create false
 	falseNavigationO = Obs.create false
@@ -74,9 +78,9 @@ exports.render = !->
 
 		Obs.interval 200, !->
 			if st = thinkTimer.peek()
-				timeUsed.set Math.min((Date.now() - st), THINK_TIME)
+				timeUsed.set Math.min((getTime() - st), THINK_TIME)
 			else if st = startTime.peek()
-				timeUsed.set Math.min((Date.now() - st), DRAW_TIME)
+				timeUsed.set Math.min((getTime() - st), DRAW_TIME)
 
 	# ------------ helper functions -------------
 
@@ -90,19 +94,19 @@ exports.render = !->
 
 	startThinkTimer = !->
 		return if thinkTimer.peek() isnt false # timer already running
-		thinkTimer.set Date.now()
+		thinkTimer.set getTime()
 
 	startTheClock = !->
 		return if startTime.peek() isnt false # timer already running
 		thinkTimer.set false
-		startTime.set Date.now()
+		startTime.set getTime()
 
 		# time's started, let's do setup
 		addStep 'brush', {size: lineWidthO.peek()}
 		addStep 'col', { col: getColor() }
 
 	submit = !->
-		time = 0|Date.now()*.001
+		time = 0|getTime()*.001
 
 		# TODO? upload the result as png
 
@@ -129,7 +133,7 @@ exports.render = !->
 		step.type = type
 		st = startTime.peek()
 		if st
-			step.time = Math.max(1, Date.now() - st)
+			step.time = Math.max(1, getTime() - st)
 		else
 			step.time = 1 # step before starting to draw.
 		steps.push step

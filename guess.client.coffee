@@ -20,6 +20,10 @@ GUESS_TIME = Config.guessTime()
 nav = !->
 	log "nav away"
 
+timeDelta = Date.now()-App.time()*1000
+getTime = ->
+	Date.now()-timeDelta
+
 exports.render = !->
 	drawingId = Page.state.get(0)
 	lettersO = Obs.create false
@@ -46,8 +50,8 @@ exports.render = !->
 		falseNavigationO.set true
 		return
 
-	now = Date.now()
-	Server.call 'getLetters', drawingId, now, (_fields, _solutionHash, _letters) !->
+	now = getTime()
+	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters) !->
 		log "gotLetters"
 		if _fields is "time"
 			log "Your time is up"
@@ -77,10 +81,10 @@ exports.render = !->
 						Db.shared.set 'scores', App.memberId(), drawingId, 0
 
 			Obs.interval 200, !->
-				# log "timer", Date.now(), timer, Date.now()-timer, GUESS_TIME
-				timeUsedO.set Math.min((Date.now() - timer), GUESS_TIME)
+				# log "timer", getTime(), timer, getTime()-timer, GUESS_TIME
+				timeUsedO.set Math.min((getTime() - timer), GUESS_TIME)
 
-			Obs.onTime GUESS_TIME-(Date.now() - timer), !->
+			Obs.onTime GUESS_TIME-(getTime() - timer), !->
 				if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
 					log "already submitted."
 					nav()
@@ -99,13 +103,13 @@ exports.render = !->
 
 			cvs = Canvas.render null # render canvas
 
-			log "startTime", timer, Date.now()
+			log "startTime", timer, getTime()
 			steps = drawingR.get('steps')
 			return unless steps
 			steps = steps.split(';')
 			for data in steps then do (data) !->
 				step = Canvas.decode(data)
-				now = Date.now() - timer
+				now = getTime() - timer
 				if step.time > now
 					Obs.onTime (step.time - now), !->
 						cvs.addStep step
@@ -121,7 +125,7 @@ exports.render = !->
 				if solution.length is length
 					if Config.simpleHash(solution) is solutionHash
 						# set timer
-						timer = Math.round((Date.now()-timer)*.001)
+						timer = Math.round((getTime()-timer)*.001)
 						log "Correct answer! in", timer, 'sec'
 						Server.sync 'submitAnswer', drawingId, solution, timer, !->
 							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer

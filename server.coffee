@@ -141,10 +141,11 @@ exports.client_startDrawing = (cb) !->
 		cb.reply false # no no no, you don't get to try again.
 
 
-exports.client_getLetters = (drawingId, timestamp, cb) !->
+exports.client_getLetters = (drawingId, cb) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
 	word = WordList.getWord wordId
 	memberId = App.memberId()
+	timestamp = Date.now()
 
 	# Timelords not allowed.
 	startTime = Db.personal(memberId).get(drawingId)||timestamp # either old startTime or current
