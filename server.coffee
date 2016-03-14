@@ -27,13 +27,26 @@ WordList = require 'wordLists'
 #			<drawingId>: <score>
 
 exports.onUpgrade = !->
-	wordObj = WordList.getRndWordObjects 1, false # get one word
-	if wordObj
-		Db.shared.set "outOfWords", false
-		log "update: we have words available"
-	else
-		Db.shared.set "outOfWords", true
-		log "update: still out of words"
+	# wordObj = WordList.getRndWordObjects 1, false # get one word
+	# if wordObj
+	# 	Db.shared.set "outOfWords", false
+	# 	log "update: we have words available"
+	# else
+	# 	Db.shared.set "outOfWords", true
+	# 	log "update: still out of words"
+
+	Db.shared.set 'wordlist', 'en1'
+
+	Db.shared.iterate 'drawings', (drawing) !->
+		oldId = drawing.get('wordId')
+		r = /^(.*)?_(.*)$/i.exec oldId
+		oldId = if (""+oldId).length>3 then r[2] else oldId
+		newId = 'en1_'+oldId
+		drawing.set 'wordId', newId
+		Db.backend.set 'words', drawing.key(), {
+			word: WordList.getWord newId, false # raw word
+			prefix: WordList.getPrefix newId
+		}
 
 	# reset words in personal storage
 	# for memberId in App.memberIds()
@@ -42,9 +55,10 @@ exports.onUpgrade = !->
 	# 		addWordToPersonal memberId, drawingId
 
 addWordToPersonal = (memberId, drawingId) !->
+	# Db.backend.get 'words', drawingId
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-	word = WordList.getWord wordId, false
-	prefix = WordList.getPrefix(wordId)
+	word = Db.backend.get 'words', drawingId, 'word'
+	prefix = Db.backend.get 'words', drawingId, 'prefix'
 	value = if prefix then prefix + " " + word else word
 	Db.personal(memberId).set('words', drawingId, value)
 
@@ -87,12 +101,16 @@ exports.client_addDrawing = (id, steps, time) !->
 	#return if (personalDb.get 'currentDrawing') isnt id
 
 	currentDrawing = personalDb.get 'lastDrawing'
+	wordId = currentDrawing.wordId
+
 	# finished drawing, so let's get it out of the personal db and into the shared!
 	Db.shared.set 'drawings', id,
 		memberId: App.memberId()
-		wordId: currentDrawing.wordId
+		wordId: wordId
 		steps: steps
 		time: time
+	Db.backend.set 'words', id, 'word', WordList.getWord(wordId, false)
+	Db.backend.set 'words', id, 'prefix', WordList.getPrefix(wordId)
 
 	addWordToPersonal App.memberId(), id
 
@@ -143,7 +161,8 @@ exports.client_startDrawing = (cb) !->
 
 exports.client_getLetters = (drawingId, cb) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-	word = WordList.getWord wordId
+	word = Db.backend.get 'words', drawingId, 'word'
+	word = WordList.process word
 	memberId = App.memberId()
 	timestamp = Date.now()
 
@@ -196,9 +215,8 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 		return
 
 	drawing = Db.shared.ref 'drawings', drawingId
-	wordId = drawing.get('wordId')
-	word = WordList.getWord wordId
-	if word is answer.replace(/\s/g,'') # correct!
+	word = Db.backend.get 'words', drawingId, 'word'
+	if WordList.process(word) is WordList.process(answer) # correct!
 		# set artist's score if we have the highest
 		best = true
 		drawing.iterate 'members', (member) !->
@@ -215,8 +233,7 @@ exports.client_submitAnswer = (drawingId, answer, time) !->
 
 		# notify artist
 		if best
-			word = WordList.getWord wordId, false
-			prefix = WordList.getPrefix(wordId)
+			prefix = Db.backend.get 'words', drawingId, 'prefix'
 			word = if prefix then prefix + " " + word else word
 			Event.create
 				path: "/#{drawingId}?comments"
@@ -258,8 +275,7 @@ exports.client_getWord = (drawingId, cb) !->
 	artist = drawingR.get 'memberId'
 	time = drawingR.get 'members', App.memberId()
 	if (artist is App.memberId()) or (time and time isnt -1) # -1 is 'currently guessing'
-		wordId = Db.shared.get 'drawings', drawingId, 'wordId'
-		word = WordList.getWord wordId, false
+		word = Db.backend.get 'words', drawingId, 'word'
 		cb.reply word
 	else # you haven't even guessed! no word for you.
 		cb.reply false
