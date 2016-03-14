@@ -3,7 +3,7 @@ Db = require 'db'
 WordlistEN1 = require 'wordlistEN1'
 WordlistNL1 = require 'wordlistNL1'
 
-listIndex = Db.shared.get('wordlist')||'en1'
+listIndex = Db.shared.get('wordList')||'en1'
 wordLists = {}
 wordLists['en1'] = WordlistEN1.wordList()
 wordLists['nl1'] = WordlistNL1.wordList()

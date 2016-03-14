@@ -5,7 +5,7 @@ App = require 'app'
 Event = require 'event'
 Obs = require 'obs'
 Page = require 'page'
-# Form = require 'form'
+Form = require 'form'
 Time = require 'time'
 Ui = require 'ui'
 {tr} = require 'i18n'
@@ -76,7 +76,7 @@ renderOverview = !->
 			mem = drawing.get('members')
 			what = Db.personal.get('words', drawing.key())||false
 			if what
-				r = /^(a[a-z]?\s)?(.*)$/i.exec what
+				r = /^([a-z]*\s)?(.*)$/i.exec what
 				prefix = if r[1] then r[1] else ""
 				what = r[2]
 				item.content = !->
@@ -100,7 +100,7 @@ renderOverview = !->
 		else if state? and state isnt -1 # you've guessed it
 			what = Db.personal.get('words', drawing.key())||false
 			if what
-				r = /^(a[a-z]?\s)?(.*)$/i.exec what
+				r = /^([a-z]*\s)?(.*)$/i.exec what
 				prefix = if r[1] then r[1] else ""
 				what = r[2]
 
@@ -152,3 +152,16 @@ renderScores = !->
 		s = 0
 		s += v for k, v of Db.shared.get('scores', member.key())
 		-s
+
+exports.renderSettings = !->
+	Dom.h2 tr("Language")
+
+	iniValue = 'en1'
+	if Db.shared then iniValue = Db.shared.get('wordList')
+
+	Form.segmented
+		name: 'wordList'
+		value: iniValue
+		segments: ['en1', tr("English"), 'nl1', tr("Dutch")]
+		onChange: (v) !->
+			log "on change", v

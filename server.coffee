@@ -19,12 +19,18 @@ WordList = require 'wordLists'
 #		<drawingId>:
 #			Stuff about time and author
 #			steps: <data in string>
+#			wordId: <en1_123>
 #			members:
 #				<memberId>: <time they needed to guess in sec>
-
 #	scores:
 #		<memberId>:
 #			<drawingId>: <score>
+
+# Backend:
+#	words:
+#		<drawingId>:
+#			word: <fence>
+#			prefix: <a/an/"">
 
 exports.onUpgrade = !->
 	# wordObj = WordList.getRndWordObjects 1, false # get one word
@@ -35,7 +41,7 @@ exports.onUpgrade = !->
 	# 	Db.shared.set "outOfWords", true
 	# 	log "update: still out of words"
 
-	Db.shared.set 'wordlist', 'en1'
+	Db.shared.set 'wordList', 'en1'
 
 	Db.shared.iterate 'drawings', (drawing) !->
 		oldId = drawing.get('wordId')
@@ -53,6 +59,9 @@ exports.onUpgrade = !->
 	# 	log "adding words", memberId
 	# 	for drawingId, word of Db.personal(memberId).get('words')
 	# 		addWordToPersonal memberId, drawingId
+
+exports.onConfig = (config) !->
+	Db.shared.set 'wordList', config['wordList']
 
 addWordToPersonal = (memberId, drawingId) !->
 	# Db.backend.get 'words', drawingId
