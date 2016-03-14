@@ -46,7 +46,8 @@ exports.render = !->
 		falseNavigationO.set true
 		return
 
-	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters) !->
+	now = Date.now()
+	Server.call 'getLetters', drawingId, now, (_fields, _solutionHash, _letters) !->
 		log "gotLetters"
 		if _fields is "time"
 			log "Your time is up"
@@ -60,13 +61,8 @@ exports.render = !->
 		solutionHash = _solutionHash
 		length += i for i in fields
 		lettersO.set _letters
-		savedTimer = Db.personal.peek(drawingId)||0
-		now = Date.now()
-		if now < savedTimer # This can only happen by time difference between server and client
-			timer = now
-		else
-			timer = savedTimer
-		log "savedTimer:", savedTimer, "now:", now, "timer:", timer
+		timer = Db.personal.peek(drawingId)||now
+		log "savedTimer:", Db.personal.peek(drawingId), "now:", now, "timer:", timer
 		initializedO.set true
 
 	# Obs.observe !-> # do in obs scope for cleanup

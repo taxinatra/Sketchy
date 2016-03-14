@@ -77,7 +77,7 @@ renderOverview = !->
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				r = /^(a[a-z]?)?\s?(.*)$/i.exec what
-				prefix = if [1] then r[1] + " " else ""
+				prefix = if r[1] then r[1] + " " else ""
 				what = r[2]
 				item.content = !->
 					Dom.userText tr("You sketched %1", prefix)
@@ -101,7 +101,7 @@ renderOverview = !->
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				r = /^(a[a-z]?)?\s?(.*)$/i.exec what
-				prefix = if [1] then r[1] + " " else ""
+				prefix = if r[1] then r[1] + " " else ""
 				what = r[2]
 
 				item.content = !->

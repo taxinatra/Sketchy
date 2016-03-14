@@ -35,6 +35,7 @@ exports.onUpgrade = !->
 		Db.shared.set "outOfWords", true
 		log "update: still out of words"
 
+	# reset words in personal storage
 	# for memberId in App.memberIds()
 	# 	log "adding words", memberId
 	# 	for drawingId, word of Db.personal(memberId).get('words')
@@ -140,15 +141,15 @@ exports.client_startDrawing = (cb) !->
 		cb.reply false # no no no, you don't get to try again.
 
 
-exports.client_getLetters = (drawingId, cb) !->
+exports.client_getLetters = (drawingId, timestamp, cb) !->
 	wordId = Db.shared.get 'drawings', drawingId, 'wordId'
 	word = WordList.getWord wordId
 	memberId = App.memberId()
 
 	# Timelords not allowed.
-	startTime = Db.personal(memberId).get drawingId
-	log "startTime", 0, Date.now()-startTime, Config.guessTime()*2
-	if Date.now() < startTime and Date.now() > startTime + Config.guessTime()*2
+	startTime = Db.personal(memberId).get(drawingId)||timestamp # either old startTime or current
+	log "get letters: startTime", Db.personal(memberId).get(drawingId), timestamp, " - ", 0, timestamp-startTime, Config.guessTime()*2
+	if timestamp < startTime and timestamp > startTime + Config.guessTime()*2
 		submitForfeit (drawingId)
 		cb.reply "time"
 		return null
@@ -162,8 +163,7 @@ exports.client_getLetters = (drawingId, cb) !->
 		return null
 
 	# write down when a user has started guessing
-	unless startTime
-		Db.personal(memberId).set drawingId, Date.now()
+	Db.personal(memberId).set drawingId, startTime
 	# set failed score. You can better this by providing the correct answer
 	Db.shared.set 'drawings', drawingId, 'members', memberId, -1
 	Db.shared.set 'scores', memberId, drawingId, 0
