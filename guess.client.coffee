@@ -17,8 +17,11 @@ Timer = require 'timer'
 CANVAS_RATIO = Config.canvasRatio()
 GUESS_TIME = Config.guessTime()
 
+nav = !->
+	log "nav away"
+
 exports.render = !->
-	drawingId = Page.state.get('?drawing')
+	drawingId = Page.state.get(0)
 	lettersO = Obs.create false
 	fields = null
 	solutionHash = null
@@ -47,7 +50,7 @@ exports.render = !->
 		log "gotLetters"
 		if _fields is "time"
 			log "Your time is up"
-			Page.nav {0:drawingId}
+			nav()
 			return
 		unless _fields
 			log "got null from server. word is either illegal or we already guessed this sketching"
@@ -84,13 +87,13 @@ exports.render = !->
 			Obs.onTime GUESS_TIME-(Date.now() - timer), !->
 				if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
 					log "already submitted."
-					Page.nav {0:drawingId}
+					nav()
 					return
 				log "Forfeit by timer"
 				Server.sync 'submitForfeit', drawingId, !->
 					Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 					Db.shared.set 'scores', App.memberId(), drawingId, 0
-				Page.nav {0:drawingId}
+				nav()
 
 	Dom.style backgroundColor: '#DDD', height: '100%', Box: 'vertical'
 
@@ -128,7 +131,7 @@ exports.render = !->
 							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
 							Db.shared.set 'scores', App.memberId(), drawingId, Config.timeToScore(timer)
 
-						Page.nav {0:drawingId}
+						nav()
 					else
 						incorrectO.set true
 				else

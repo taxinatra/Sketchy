@@ -12,13 +12,12 @@ Ui = require 'ui'
 
 Config = require 'config'
 Draw = require 'draw'
-Guess = require 'guess'
 View = require 'view'
 
 exports.render = !->
 	pageName = Page.state.get(0)
+	log "pageName", pageName
 	return Draw.render() if pageName is 'draw'
-	return Guess.render() if pageName is 'guess'
 	return renderScores() if pageName is 'scores'
 	return View.render() if pageName # anything else
 
@@ -125,8 +124,6 @@ renderOverview = !->
 			item.sub= !->
 				Dom.text "Sketched "
 				Time.deltaText(drawing.get('time'))
-			item.onTap = !->
-				Page.nav {0:'guess', '?drawing':drawing.key()}
 			item.afterIcon = !->
 				Event.renderBubble ['/'+drawing.key()+"?comments"]
 

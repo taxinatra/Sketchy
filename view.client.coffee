@@ -14,6 +14,7 @@ Ui = require 'ui'
 Photo = require 'photo'
 
 Config = require 'config'
+Guess = require 'guess'
 
 CANVAS_RATIO = Config.canvasRatio()
 
@@ -32,21 +33,30 @@ exports.renderPoints = renderPoints = (points, size, style=null) !->
 		Dom.text points
 
 exports.render = !->
+	drawingId = Page.state.get(0)
+	unless drawingId # if we have no id, error
+		log 'No drawing Id'
+		falseNavigationO.set true
+		return
+	drawingR = Db.shared.ref('drawings', drawingId)
+	myId = App.memberId()
+	myTime = drawingR.get('members', myId)
+
+	# score view is defined here. Guessing in guess.client.coffee
+	log "me:", myId, "artist:", drawingR.get('memberId'), "myTime:", myTime
+	if myId isnt drawingR.get('memberId') # not my own drawing
+		if !myTime? or myTime is -1 # not guessed, or busy guessing
+			log "guessing"
+			return Guess.render()
+
+	# --- result screen ---
+
 	falseNavigationO = Obs.create false
 	backgroundO = Obs.create ""
 
 	Obs.observe !->
 		if falseNavigationO.get()
 			Ui.emptyText tr("It seems like you are not suppose to be here.")
-
-	drawingId = Page.state.get(0)
-	unless drawingId # if we have no id, error
-		log 'No drawing Id'
-		falseNavigationO.set true
-		return
-
-	drawingR = Db.shared.ref('drawings', drawingId)
-	myTime = drawingR.get('members', App.memberId())
 
 	Dom.style minHeight: '100%', background: "rgba(255, 255, 255, 1)"
 
@@ -117,7 +127,7 @@ exports.render = !->
 				falseNavigationO.set true
 
 	renderScore = (drawingId) !->
-		points = Db.shared.get('scores', App.memberId(), drawingId)
+		points = Db.shared.get('scores', myId, drawingId)
 		Dom.div !->
 			Dom.style Box: 'vertical center', minHeight: '116px'
 			Dom.text tr("This earned you")
@@ -126,7 +136,7 @@ exports.render = !->
 			Dom.text if points>1 then tr("points") else tr("point")
 
 
-	if drawingR.get('memberId') is App.memberId() # my drawing
+	if drawingR.get('memberId') is myId # my drawing
 		arr = (v for k, v of drawingR.get('members'))
 		lowestTime = 99
 		for i in arr
