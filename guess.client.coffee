@@ -159,6 +159,7 @@ exports.render = !->
 				Dom.div !->
 					Dom.style
 						margin: "0 auto"
+						background: '#4E5E7B'
 					renderGuessing chosenLettersO, lettersO
 		else
 			Ui.emptyText tr("Loading ...")
@@ -187,11 +188,13 @@ exports.render = !->
 						else
 							Dom.addClass 'empty'
 							Dom.removeClass 'letter'
-							Dom.userText "&nbsp;"
+							# Dom.userText "&nbsp;"
+							Dom.userText "-"
 		padding = if Page.height() > 700 then 6 else 3
 		Dom.div !->
+			Dom.addClass 'answer'
 			Dom.style
-				background: '#444'
+				background: '#28344A'
 				padding: '3px 0px'
 				width: '100%'
 				textAlign: 'center'
@@ -203,6 +206,7 @@ exports.render = !->
 				textAlign: 'center'
 				margin: "0 auto"
 			Dom.div !->
+				Dom.addClass 'pool'
 				Dom.style
 					Flex: true
 					padding: padding
@@ -228,23 +232,40 @@ exports.render = !->
 				_userSelect: 'none'
 
 			'.tileContent':
+				_boxSizing: 'border-box'
 				width: '32px'
 				height: '32px'
 				borderRadius: '3px'
-				border: '1px solid grey'
 				fontSize: '26px'
 				lineHeight: '32px'
 				textTransform: 'uppercase'
-				color: 'grey'
+				color: 'white'
 				textAlign: 'center'
 
 			'.tileContent.empty':
-				background: 'white'
+				background: '#95B6D4'
 				boxShadow: 'none'
 
-			'.tileContent.letter':
-				background: 'beige'
-				boxShadow: "black 1px 1px"
+			# '.tileContent.letter':
+				# border: '1px solid white'
+
+			".tile .tileContent.letter":
+				background: '#BA1A6E'
+				color: 'white'
+				# boxShadow: "black 1px 1px"
+
+			".pool .tile .tileContent.empty":
+				color: '#95B6D4'
+
+			# ".tile .tileContent.empty":
+				# background: '#BA1A6E'
+				# border: "2px solid white"
+
+			# ".tile .tileContent.letter":
+			# 	border: "2px solid #BA1A6E"
+			# 	background: 'white'
+			# 	color: 'black'
+			# 	boxShadow: "black 1px 1px"
 
 			'.tap .tileContent.letter':
-				background: '#DADAD9'
+				background: '#790C46'#'#DADAD9'

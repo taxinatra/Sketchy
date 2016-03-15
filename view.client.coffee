@@ -53,6 +53,7 @@ exports.render = !->
 		else
 			guessO.set false
 
+	Dom.style minHeight: '100%'
 	Dom.div !-> # dom obs
 		Dom.style margin: 0, minHeight: '100%'
 		if guessO.get()

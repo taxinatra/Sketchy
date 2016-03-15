@@ -224,11 +224,12 @@ exports.render = !->
 					addStep 'brush', { size: b.n }
 
 	# ------------ compose dom -------------
-	Dom.style backgroundColor: '#666', height: '100%'
+	## background: '#4E5E7B'
+	Dom.style backgroundColor: '#4E5E7B', height: '100%'
 
 	Ui.top !->
 		Dom.style
-			backgroundColor: '#666'
+			backgroundColor: '#4E5E7B'
 			color: 'white'
 			textAlign: 'center'
 			fontWeight: 'bold'
@@ -281,7 +282,7 @@ exports.render = !->
 			height: '80px'
 			margin: 0
 			paddingBottom: '4px'
-			background: '#666'
+			background: '#4E5E7B'
 		Dom.div !->
 			Dom.style Flex: true, height: '42px'
 			Dom.overflow()
