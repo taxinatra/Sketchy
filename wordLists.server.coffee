@@ -56,12 +56,11 @@ rndWord = (amount = 1) ->
 	# form an sorted array with id's we already used
 	used = []
 	Db.shared.forEach 'drawings', (item) !->
-		log "rndWord", item.get('wordId')
 		r = /^(.*)?_(.*)$/i.exec item.get('wordId')
 		listId = r[1]
-		wordId = r[2]
+		wordId = 0|r[2]
 		if listId is listIndex # same list?
-			used.push 0|item.get('wordId')
+			used.push wordId
 	used.sort (a,b) -> a - b # sort on value
 
 	# form an sorted array with possible words
@@ -98,13 +97,16 @@ rndWord = (amount = 1) ->
 
 		# check if the word is already used
 		while usedWalker < usedLen and used[usedWalker] <= word[0]
+			# log "walk",i,  usedWalker, ":", used[usedWalker], word[0]
 			if (used[usedWalker]) is (word[0]) # if so, splice
+				# log "slice", i, 1
 				words.splice i, 1
 				i--
 				break
 			usedWalker++
 		# if index is what we picked, write to return
 		if i is (pick[rWalker])
+			# log "picking", i, pick[rWalker], word
 			r[rWalker] = word
 			rWalker++
 			break if rWalker >= pick.length # we're done here

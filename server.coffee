@@ -164,7 +164,7 @@ exports.client_getLetters = (drawingId, cb) !->
 
 	# Timelords not allowed.
 	startTime = Db.personal(memberId).get(drawingId)||timestamp # either old startTime or current
-	log "get letters: startTime", Db.personal(memberId).get(drawingId), timestamp, " - ", 0, timestamp-startTime, Config.guessTime()*2
+	log "get letters for",drawingId,"by",memberId,": personal time:", Db.personal(memberId).get(drawingId),"now:", timestamp, " - ", 0, timestamp-startTime, Config.guessTime()*2
 	if timestamp < startTime and timestamp > startTime + Config.guessTime()*2
 		submitForfeit (drawingId)
 		cb.reply "time"

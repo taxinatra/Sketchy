@@ -23,7 +23,7 @@ exports.renderPoints = renderPoints = (points, size, style=null) !->
 		Dom.style
 			background: '#0077CF'
 			borderRadius: '50%'
-			fontSize: '120%'
+			fontSize: (size*.5)+'px'
 			textAlign: 'center'
 			width: size+'px'
 			height: size+'px'
@@ -36,18 +36,34 @@ exports.render = !->
 	drawingId = Page.state.get(0)
 	unless drawingId # if we have no id, error
 		log 'No drawing Id'
-		falseNavigationO.set true
 		return
 	drawingR = Db.shared.ref('drawings', drawingId)
 	myId = App.memberId()
-	myTime = drawingR.get('members', myId)
+	guessO = Obs.create false
 
-	# score view is defined here. Guessing in guess.client.coffee
-	log "me:", myId, "artist:", drawingR.get('memberId'), "myTime:", myTime
-	if myId isnt drawingR.get('memberId') # not my own drawing
-		if !myTime? or myTime is -1 # not guessed, or busy guessing
+	Obs.observe !->
+		myTime = drawingR.get('members', myId)
+
+		# score view is defined here. Guessing in guess.client.coffee
+		log "me:", myId, "artist:", drawingR.get('memberId'), "myTime:", myTime
+		# not my own drawing. not guessed, or busy guessing
+		if myId isnt drawingR.get('memberId') and (!myTime? or myTime is -1)
 			log "guessing"
-			return Guess.render()
+			guessO.set true
+		else
+			guessO.set false
+
+	Dom.div !-> # dom obs
+		Dom.style margin: 0, minHeight: '100%'
+		if guessO.get()
+			Guess.render()
+		else
+			renderResult(drawingId)
+
+renderResult = (drawingId) !->
+	myId = App.memberId()
+	drawingR = Db.shared.ref('drawings', drawingId)
+	myTime = drawingR.get('members', myId)
 
 	# --- result screen ---
 
@@ -58,7 +74,7 @@ exports.render = !->
 		if falseNavigationO.get()
 			Ui.emptyText tr("It seems like you are not suppose to be here.")
 
-	Dom.style minHeight: '100%', background: "rgba(255, 255, 255, 1)"
+	Dom.style minHeight: '100%', background: "rgba(255, 255, 255, 1)", height: ''
 
 	Dom.style
 		Box: 'vertical center'
@@ -224,7 +240,7 @@ exports.render = !->
 	Obs.observe !->
 		bg = backgroundO.get()
 		if bg
-			Page.setBackground "no-repeat 50% 50% url(" + bg + ")"
+			Page.setBackground "no-repeat 50% 50%/cover url(" + bg + ")"
 			Dom.transition background: "rgba(255, 255, 255, 0.9)"
 
 	# invisible canvas

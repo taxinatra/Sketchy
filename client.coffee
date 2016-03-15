@@ -80,7 +80,7 @@ renderOverview = !->
 				prefix = if r[1] then r[1] else ""
 				what = r[2]
 				item.content = !->
-					Dom.userText tr("You sketched %1", prefix)
+					Dom.userText tr("**You sketched %1**", prefix)
 					Dom.span !->
 						color = if isNew then '#5b0' else '#0077CF'
 						Dom.style color: color, fontWeight: 'bold'
@@ -115,7 +115,7 @@ renderOverview = !->
 			if state >= 0
 				item.sub = tr("Guessed by you in %1 second|s", state)
 			else
-				item.sub = tr("Failed to guess")
+				item.sub = tr("You failed to guess")
 			item.afterIcon = !->
 					Event.renderBubble ['/'+drawing.key()+"?comments"]
 					View.renderPoints(Db.shared.get('scores', yourId, drawing.key()), 40)
