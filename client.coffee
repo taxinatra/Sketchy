@@ -141,7 +141,7 @@ renderScores = !->
 		Ui.item
 			avatar: member.get('avatar')
 			content: member.get('name')
-			sub: tr("Guessed %1 sketching|s", Object.keys(scores||{}).length)
+			sub: tr("Guessed %1 sketch|es", Object.keys(scores||{}).length)
 			afterIcon: !->
 				s = 0
 				s += v for k, v of scores

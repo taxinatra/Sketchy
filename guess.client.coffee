@@ -281,6 +281,7 @@ exports.render = !->
 				textTransform: 'uppercase'
 				color: 'white'
 				textAlign: 'center'
+				fontFamily: "Bree Serif"
 				# _transition: 'background 1s'
 
 			# '.tileContent.empty':
