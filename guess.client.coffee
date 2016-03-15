@@ -26,7 +26,8 @@ getTime = ->
 
 exports.render = !->
 	drawingId = Page.state.get(0)
-	lettersO = Obs.create false
+	poolO = Obs.create {}
+	answerO = Obs.create {}
 	fields = null
 	solutionHash = null
 	length = 0 # total number of letters in the answer
@@ -35,6 +36,7 @@ exports.render = !->
 	falseNavigationO = Obs.create false
 	timer = 0
 	timeUsedO = Obs.create 0
+	flashO = Obs.create false # flash tiles in a color
 
 	Obs.observe !->
 		if falseNavigationO.get()
@@ -55,6 +57,7 @@ exports.render = !->
 		log "gotLetters"
 		if _fields is "time"
 			log "Your time is up"
+			flashO.set 'wrong'
 			nav()
 			return
 		unless _fields
@@ -64,13 +67,12 @@ exports.render = !->
 		fields = _fields
 		solutionHash = _solutionHash
 		length += i for i in fields
-		lettersO.set _letters
+		poolO.set _letters
 		timer = Db.personal.peek(drawingId)||now
 		log "savedTimer:", Db.personal.peek(drawingId), "now:", now, "timer:", timer
 		initializedO.set true
 
-	# Obs.observe !-> # do in obs scope for cleanup
-	Dom.div !->
+	Dom.div !-> # do in obs scope for cleanup
 		if initializedO.get()
 			Page.setBackConfirm
 				title: tr("Are you sure?")
@@ -93,137 +95,175 @@ exports.render = !->
 				Server.sync 'submitForfeit', drawingId, !->
 					Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 					Db.shared.set 'scores', App.memberId(), drawingId, 0
+				flashO.set 'wrong'
 				nav()
 
 	Dom.style backgroundColor: '#DDD', height: '100%', Box: 'vertical'
 
+	renderTiles = (fromO, toO, inAnswer=false) !->
+		for i in [0...fromO.get('count')] then do (i) !->
+			Dom.div !->
+				Dom.addClass 'tile'
+				thisE = Dom.get
+				letter = fromO.get(i)
+				if letter then Dom.onTap !-> moveTile fromO, toO, i, inAnswer
+				Dom.div !->
+					Dom.addClass 'tileContent'
+					if letter
+						Dom.addClass 'letter'
+						Dom.removeClass 'empty'
+						Dom.text fromO.get(i)[0]
+						Dom.transition
+							background: '#BA1A6E'
+							initial: background: '#95B6D4'
+					else
+						Dom.addClass 'empty'
+						Dom.removeClass 'letter'
+						Dom.userText "-"
+						Dom.transition
+							background: '#95B6D4'
+							initial: background: '#BA1A6E'
+
+	moveTile = (from, to, curIndex, inOrder) !->
+		if inOrder
+			letter = from.peek curIndex
+			to.set [letter[1]], letter
+			from.remove curIndex
+		else # find next empty spot
+			for i in [0...to.peek('count')]
+				if not to.peek(i)?
+					to.set i, from.peek(curIndex)
+					from.remove curIndex
+					break
+
 	Obs.observe !->
-		if initializedO.get()
-			Timer.render GUESS_TIME, timeUsedO
+		unless initializedO.get()
+			Ui.emptyText tr("Loading ...")
+			return
 
-			cvs = Canvas.render null # render canvas
+		Timer.render GUESS_TIME, timeUsedO
 
-			log "startTime", timer, getTime()
-			steps = drawingR.get('steps')
-			return unless steps
-			steps = steps.split(';')
-			for data in steps then do (data) !->
-				step = Canvas.decode(data)
-				now = getTime() - timer
-				if step.time > now
-					Obs.onTime (step.time - now), !->
-						cvs.addStep step
-				else
+		cvs = Canvas.render null # render canvas
+
+		log "startTime", timer, getTime()
+		steps = drawingR.get('steps')
+		return unless steps
+		steps = steps.split(';')
+		for data in steps then do (data) !->
+			step = Canvas.decode(data)
+			now = getTime() - timer
+			if step.time > now
+				Obs.onTime (step.time - now), !->
 					cvs.addStep step
+			else
+				cvs.addStep step
 
-			chosenLettersO = Obs.create({count: length})
+		answerO.set 'count', length
 
-			Obs.observe !-> # We compare to a simple hash so we can work offline.
-			# If some Erik breaks this, we'll think of something better >:)
-				solution = (chosenLettersO.get(i) for i in [0...length]).join ''
-				log "solution:", solution, solution.length, 'vs', length
-				if solution.length is length
-					if Config.simpleHash(solution) is solutionHash
-						# set timer
-						timer = Math.round((getTime()-timer)*.001)
-						log "Correct answer! in", timer, 'sec'
+		Obs.observe !-> # We compare to a simple hash so we can work offline.
+		# If some Erik breaks this, we'll think of something better >:)
+			givenAnswer = answerO.get()
+			solution = (givenAnswer[i]?[0] for i in [0...length]).join ''
+			log "solution:", solution,":", solution.length, 'vs', length
+			if solution.length is length
+				if Config.simpleHash(solution) is solutionHash
+					# set timer
+					timer = Math.round((getTime()-timer)*.001)
+					log "Correct answer! in", timer, 'sec'
+					flashO.set 'correct'
+					Obs.onTime 1400, !->
 						Server.sync 'submitAnswer', drawingId, solution, timer, !->
 							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
 							Db.shared.set 'scores', App.memberId(), drawingId, Config.timeToScore(timer)
-
-						nav()
-					else
-						incorrectO.set true
+					nav()
 				else
-					incorrectO.set false
+					incorrectO.set true
+					flashO.set 'flashWrong'
+			else
+				incorrectO.set false
+				flashO.set false
+
+		# ---------- set the dom --------
+		padding = if Page.height() > 700 then 6 else 3
+
+		Dom.div !->
+			Dom.style background: '#666', margin: 0, position: 'relative'
+
+			Obs.observe !->
+				return unless incorrectO.get()
+				Dom.div !->
+					Dom.style
+						position: 'absolute'
+						bottom: '10px'
+						left: Page.width()/2-67
+						top: '-40px'
+						height: '23px'
+						textAlign: 'center'
+						background: 'black'
+						color: 'white'
+						borderRadius: '2px'
+						padding: '4px 8px'
+					Dom.text tr("That is incorrect")
 
 			Dom.div !->
-				Dom.style background: '#666', margin: 0, position: 'relative'
+				Dom.style
+					margin: "0 auto"
+					background: '#4E5E7B'
+				Dom.div !->
+					Dom.addClass 'answer'
+					Dom.style
+						background: '#28344A'
+						padding: '3px 0px'
+						width: '100%'
+						textAlign: 'center'
+					renderTiles answerO, poolO, true
 
-				Obs.observe !->
-					return unless incorrectO.get()
-					Dom.div !->
-						Dom.style
-							position: 'absolute'
-							bottom: '10px'
-							left: Page.width()/2-67
-							top: '-40px'
-							height: '23px'
-							textAlign: 'center'
-							background: 'black'
-							color: 'white'
-							borderRadius: '2px'
-							padding: '4px 8px'
-						Dom.text tr("That is incorrect")
+					thisE = Dom.get()
+					Obs.observe !->
+						if flash = flashO.get()
+							log "flash:", flash
+							if flash is 'flashWrong'
+								thisE.transition
+									background: '#28344A'
+									initial: background: '#79070A'
+									time: 600
+							else if flash is 'wrong'
+								thisE.transition
+									background: '#79070A'
+									time: 600
+							else if flash is 'correct'
+								thisE.transition
+									background: '#2CAB08'
+									time: 600
+							else
+								thisE.style background: '28344A'
 
 				Dom.div !->
 					Dom.style
+						Box: 'middle'
+						maxWidth: if Page.height() > 700 then "388px" else "333px"
+						textAlign: 'center'
 						margin: "0 auto"
-						background: '#4E5E7B'
-					renderGuessing chosenLettersO, lettersO
-		else
-			Ui.emptyText tr("Loading ...")
-
-	moveTile = (from, to, curIndex) !->
-		# find next empty spot
-		for i in [0...to.get('count')]
-			if not to.get(i)?
-				to.set i, from.get(curIndex)
-				from.set curIndex, null
-				break
-
-	renderGuessing = (chosenLettersO, remainingLettersO) !->
-		renderTiles = (fromO, toO, format=false) !->
-			for i in [0...fromO.get('count')] then do (i) !->
-				Dom.div !->
-					Dom.addClass 'tile'
-					letter = fromO.get(i)
-					if letter then Dom.onTap !-> moveTile fromO, toO, i
 					Dom.div !->
-						Dom.addClass 'tileContent'
-						if letter
-							Dom.addClass 'letter'
-							Dom.removeClass 'empty'
-							Dom.text fromO.get(i)
-						else
-							Dom.addClass 'empty'
-							Dom.removeClass 'letter'
-							# Dom.userText "&nbsp;"
-							Dom.userText "-"
-		padding = if Page.height() > 700 then 6 else 3
-		Dom.div !->
-			Dom.addClass 'answer'
-			Dom.style
-				background: '#28344A'
-				padding: '3px 0px'
-				width: '100%'
-				textAlign: 'center'
-			renderTiles chosenLettersO, remainingLettersO, true
-		Dom.div !->
-			Dom.style
-				Box: 'middle'
-				maxWidth: if Page.height() > 700 then "388px" else "333px"
-				textAlign: 'center'
-				margin: "0 auto"
-			Dom.div !->
-				Dom.addClass 'pool'
-				Dom.style
-					Flex: true
-					padding: padding
-				renderTiles remainingLettersO, chosenLettersO, false
-			Icon.render
-				data: 'close' # backspace
-				color: 'white'
-				size: 18
-				style:
-					padding: '3px'
-					marginRight: '5px'
-					border: "1px solid white"
-					borderRadius: '2px'
-				onTap: !->
-					log "clear!"
-					for i in [0...chosenLettersO.get('count')] then do (i) !->
-						moveTile chosenLettersO, lettersO, i
+						Dom.addClass 'pool'
+						Dom.style
+							Flex: true
+							padding: padding
+						renderTiles poolO, answerO, false
+					Icon.render
+						data: 'close' # backspace
+						color: 'white'
+						size: 18
+						style:
+							padding: '3px'
+							marginRight: '5px'
+							border: "1px solid white"
+							borderRadius: '2px'
+						onTap: !->
+							log "clear!"
+							for i in [0...answerO.get('count')] then do (i) !->
+								if answerO.peek(i)
+									moveTile answerO, poolO, i, true
 
 		Dom.css
 			'.tile':
@@ -241,17 +281,18 @@ exports.render = !->
 				textTransform: 'uppercase'
 				color: 'white'
 				textAlign: 'center'
+				# _transition: 'background 1s'
 
-			'.tileContent.empty':
-				background: '#95B6D4'
-				boxShadow: 'none'
+			# '.tileContent.empty':
+				# background: '#95B6D4'
+				# boxShadow: 'none'
 
 			# '.tileContent.letter':
 				# border: '1px solid white'
 
-			".tile .tileContent.letter":
-				background: '#BA1A6E'
-				color: 'white'
+			# ".tile .tileContent.letter":
+				# background: '#BA1A6E'
+				# color: 'white'
 				# boxShadow: "black 1px 1px"
 
 			".pool .tile .tileContent.empty":

@@ -188,7 +188,8 @@ exports.client_getLetters = (drawingId, cb) !->
 	letters = Letters.getRandom 14-word.length
 	letters.push c for c in word
 	scrambledLetters = {}
-	scrambledLetters[i] = letter for letter, i in letters.sort()
+	for letter, i in letters.sort()
+		scrambledLetters[i] = [letter, i]
 	scrambledLetters.count = letters.length
 
 	# We won't send the word, but an array of word lengths and a hash of it
