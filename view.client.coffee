@@ -101,7 +101,11 @@ renderResult = (drawingId) !->
 				width: '100%'
 			if word = wordO.get()
 				Dom.h2 !->
-					Dom.style fontSize: '28px', textTransform: 'uppercase'
+					Dom.style
+						fontSize: '28px'
+						textTransform: 'uppercase'
+						fontFamily: "Bree Serif"
+						letterSpacing: '2px'
 					Dom.text word
 			else
 				Dom.style height: '49px'

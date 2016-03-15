@@ -36,7 +36,7 @@ exports.render = !->
 	falseNavigationO = Obs.create false
 	timer = 0
 	timeUsedO = Obs.create 0
-	flashO = Obs.create false # flash tiles in a color
+	letterColorO = Obs.create true
 
 	Obs.observe !->
 		if falseNavigationO.get()
@@ -57,7 +57,7 @@ exports.render = !->
 		log "gotLetters"
 		if _fields is "time"
 			log "Your time is up"
-			flashO.set 'wrong'
+			letterColorO.set 'wrong'
 			nav()
 			return
 		unless _fields
@@ -95,34 +95,49 @@ exports.render = !->
 				Server.sync 'submitForfeit', drawingId, !->
 					Db.shared.set 'drawings', drawingId, 'members', App.memberId(), -2
 					Db.shared.set 'scores', App.memberId(), drawingId, 0
-				flashO.set 'wrong'
+				letterColorO.set 'wrong'
 				nav()
 
 	Dom.style backgroundColor: '#DDD', height: '100%', Box: 'vertical'
 
 	renderTiles = (fromO, toO, inAnswer=false) !->
 		for i in [0...fromO.get('count')] then do (i) !->
+			currentBG = '#95B6D4'
 			Dom.div !->
 				Dom.addClass 'tile'
 				thisE = Dom.get
 				letter = fromO.get(i)
 				if letter then Dom.onTap !-> moveTile fromO, toO, i, inAnswer
+				color = letterColorO.get()
+
 				Dom.div !->
 					Dom.addClass 'tileContent'
+					bg = '#BA1A6E'
+					ini = '#95B6D4'
 					if letter
 						Dom.addClass 'letter'
 						Dom.removeClass 'empty'
 						Dom.text fromO.get(i)[0]
-						Dom.transition
-							background: '#BA1A6E'
-							initial: background: '#95B6D4'
+						bg = '#BA1A6E'
+						ini =  '#95B6D4'
 					else
 						Dom.addClass 'empty'
 						Dom.removeClass 'letter'
 						Dom.userText "-"
+						bg = '#95B6D4'
+						ini = '#BA1A6E'
+
+					if inAnswer
+						if color is 'wrong' then bg = '#79070A'
+						if color is 'correct' then bg = '#2CAB08'
+
+					if bg isnt currentBG
 						Dom.transition
-							background: '#95B6D4'
-							initial: background: '#BA1A6E'
+							background: bg
+							initial: background: currentBG
+						currentBG = bg
+					else
+						Dom.style background: bg
 
 	moveTile = (from, to, curIndex, inOrder) !->
 		if inOrder
@@ -170,7 +185,7 @@ exports.render = !->
 					# set timer
 					timer = Math.round((getTime()-timer)*.001)
 					log "Correct answer! in", timer, 'sec'
-					flashO.set 'correct'
+					letterColorO.set 'correct'
 					Obs.onTime 1400, !->
 						Server.sync 'submitAnswer', drawingId, solution, timer, !->
 							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
@@ -178,10 +193,10 @@ exports.render = !->
 					nav()
 				else
 					incorrectO.set true
-					flashO.set 'flashWrong'
+					letterColorO.set 'wrong'
 			else
 				incorrectO.set false
-				flashO.set false
+				letterColorO.set true
 
 		# ---------- set the dom --------
 		padding = if Page.height() > 700 then 6 else 3
@@ -219,24 +234,6 @@ exports.render = !->
 					renderTiles answerO, poolO, true
 
 					thisE = Dom.get()
-					Obs.observe !->
-						if flash = flashO.get()
-							log "flash:", flash
-							if flash is 'flashWrong'
-								thisE.transition
-									background: '#28344A'
-									initial: background: '#79070A'
-									time: 600
-							else if flash is 'wrong'
-								thisE.transition
-									background: '#79070A'
-									time: 600
-							else if flash is 'correct'
-								thisE.transition
-									background: '#2CAB08'
-									time: 600
-							else
-								thisE.style background: '28344A'
 
 				Dom.div !->
 					Dom.style
