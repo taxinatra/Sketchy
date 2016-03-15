@@ -186,10 +186,9 @@ exports.render = !->
 					timer = Math.round((getTime()-timer)*.001)
 					log "Correct answer! in", timer, 'sec'
 					letterColorO.set 'correct'
-					Obs.onTime 1400, !->
-						Server.sync 'submitAnswer', drawingId, solution, timer, !->
-							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
-							Db.shared.set 'scores', App.memberId(), drawingId, Config.timeToScore(timer)
+					Server.sync 'submitAnswer', drawingId, solution, timer, !->
+						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
+						Db.shared.set 'scores', App.memberId(), drawingId, Config.timeToScore(timer)
 					nav()
 				else
 					incorrectO.set true
