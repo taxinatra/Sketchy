@@ -31,12 +31,12 @@ exports.getWord = (id, process = true) ->
 		r = /^(.*)?_(.*)$/i.exec id
 		listId = r[1]
 		wordId = 0|r[2]
-	log "get word", listId, wordId
 	if wordId is null
 		word = rndWord()[0][1]
 	else
 		word = wordLists[listId][wordId][1] # get word
 	if process then word = process(word)
+	log "get word", listId, wordId, ":", word
 	return word
 
 exports.getPrefix = (id) ->

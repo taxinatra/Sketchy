@@ -94,12 +94,13 @@ renderResult = (drawingId) !->
 				Dom.text opts.content2
 
 	renderAnswer = (drawingId) !->
-		wordO = Obs.create false
 		Dom.div !->
 			Dom.style
 				position: 'relative'
 				width: '100%'
-			if word = wordO.get()
+			word = Db.personal.get 'words', drawingId
+			if word
+				word = (/^([a-z]*\s)?(.*)$/i.exec word)[2]
 				Dom.h2 !->
 					Dom.style
 						fontSize: '28px'
@@ -108,7 +109,9 @@ renderResult = (drawingId) !->
 						letterSpacing: '2px'
 					Dom.text word
 			else
-				Dom.style height: '49px'
+				log "You haven't guessed this question, but requested the answer. That's not very nice."
+				falseNavigationO.set true
+				return
 
 			Icon.render
 				data: 'play'
@@ -140,12 +143,6 @@ renderResult = (drawingId) !->
 									cvs.addStep step
 							else
 								cvs.addStep step
-		Server.call "getWord", drawingId, (word) !->
-			if word
-				wordO.set word
-			else
-				log "You haven't guessed this question, but requested the answer. That's not very nice."
-				falseNavigationO.set true
 
 	renderScore = (drawingId) !->
 		points = Db.shared.get('scores', myId, drawingId)

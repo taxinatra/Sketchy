@@ -99,6 +99,8 @@ exports.client_addDrawing = (id, steps, time) !->
 	currentDrawing = personalDb.get 'lastDrawing'
 	wordId = currentDrawing.wordId
 
+	log "add Drawing", App.memberId(), wordId
+
 	# finished drawing, so let's get it out of the personal db and into the shared!
 	Db.shared.set 'drawings', id,
 		memberId: App.memberId()
@@ -133,9 +135,11 @@ exports.client_startDrawing = (cb) !->
 	personalDb = Db.personal App.memberId()
 	lastDrawing = personalDb.get('lastDrawing')||false
 
+
 	if !lastDrawing or personalDb.get('wait')+Config.cooldown() < Date.now()*.001 # first or at least 4 hours ago
 
 		wordObj = WordList.getRndWordObjects 1, false # get one word
+		log "start Drawing", App.memberId(), JSON.stringify(wordObj)
 		if not wordObj
 			Db.shared.set "outOfWords", true
 			cb.reply "out of words"

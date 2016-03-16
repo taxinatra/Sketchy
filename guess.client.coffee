@@ -143,6 +143,7 @@ exports.render = !->
 	moveTile = (from, to, curIndex, inOrder) !->
 		if inOrder
 			letter = from.peek curIndex
+			return unless letter
 			to.set [letter[1]], letter
 			from.remove curIndex
 		else # find next empty spot
