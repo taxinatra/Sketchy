@@ -37,6 +37,7 @@ exports.render = !->
 	timer = 0
 	timeUsedO = Obs.create 0
 	letterColorO = Obs.create true
+	lockO = Obs.create false
 
 	Obs.observe !->
 		if falseNavigationO.get()
@@ -107,7 +108,7 @@ exports.render = !->
 				Dom.addClass 'tile'
 				thisE = Dom.get
 				letter = fromO.get(i)
-				if letter then Dom.onTap !-> moveTile fromO, toO, i, inAnswer
+				if letter and not lockO.get() then Dom.onTap !-> moveTile fromO, toO, i, inAnswer
 				color = letterColorO.get()
 
 				Dom.div !->
@@ -182,13 +183,17 @@ exports.render = !->
 			log "solution:", solution,":", solution.length, 'vs', length
 			if solution.length is length
 				if Config.simpleHash(solution) is solutionHash
+					lockO.set true
 					# set timer
-					timer = Math.round((getTime()-timer)*.001)
-					log "Correct answer! in", timer, 'sec'
+					t = Math.round((getTime()-timer)*.001)
+					log "Correct answer! in", t, 'sec (',getTime(), ',', timer,')'
 					letterColorO.set 'correct'
-					Server.sync 'submitAnswer', drawingId, solution, timer, !->
-						Db.shared.set 'drawings', drawingId, 'members', App.memberId(), timer
-						Db.shared.set 'scores', App.memberId(), drawingId, Config.timeToScore(timer)
+					setTimeout !->
+						log "submitting answer:", solution, t
+						Server.sync 'submitAnswer', drawingId, solution, t, !->
+							Db.shared.set 'drawings', drawingId, 'members', App.memberId(), t
+							Db.shared.set 'scores', App.memberId(), drawingId, Config.timeToScore(t)
+					, 1400 # delay a bit
 					nav()
 				else
 					incorrectO.set true
@@ -256,6 +261,7 @@ exports.render = !->
 							border: "1px solid white"
 							borderRadius: '2px'
 						onTap: !->
+							return if lockO.get()
 							log "clear!"
 							for i in [0...answerO.get('count')] then do (i) !->
 								if answerO.peek(i)
