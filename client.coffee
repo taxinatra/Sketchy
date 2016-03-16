@@ -74,6 +74,8 @@ renderOverview = !->
 
 		if memberId is yourId # own sketch
 			mem = drawing.get('members')
+			if mem
+				(delete mem[k] if v is -1) for k,v of mem # skip members with a time of -1
 			what = Db.personal.get('words', drawing.key())||false
 			if what
 				r = /^([a-z]*\s)?(.*)$/i.exec what
@@ -87,7 +89,7 @@ renderOverview = !->
 						Dom.text what
 			else
 				item.content = tr("Your sketch")
-			if mem
+			if mem and Object.keys(mem).length
 				item.sub = !->
 					Dom.text tr("Guessed by ")
 					Dom.text (a = (App.memberName(+k) for k, v of mem)).join(" · ")
