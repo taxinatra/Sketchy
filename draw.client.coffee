@@ -108,7 +108,9 @@ exports.render = !->
 	submit = !->
 		time = 0|getTime()*.001
 
-		# TODO? upload the result as png
+		if drawingId is false
+			log "drawingId is false. Not submitting your drawing."
+			return
 
 		# convert steps to a more efficient format
 		data = ""
@@ -118,6 +120,7 @@ exports.render = !->
 			data += line # and append
 
 		# tell the server we're done
+		log "Sending sketch to the server", myWordO.peek().wordId, time
 		Server.sync 'addDrawing', drawingId, data, time, !-> # steps for raw array of objects
 			Db.shared.set 'drawings', drawingId,
 				memberId: App.memberId()

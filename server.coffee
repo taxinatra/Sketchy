@@ -94,7 +94,9 @@ considerCriticalMass = (id, artistId = 0) !->
 
 exports.client_addDrawing = (id, steps, time) !->
 	personalDb = Db.personal App.memberId()
-	#return if (personalDb.get 'currentDrawing') isnt id
+	log "add Drawing called by:", App.memberId(), ":", id, time, steps, "lastDrawing:", (personalDb.get 'lastDrawing', 'id')
+	return unless id and steps and time # we need these
+	return unless 0|(personalDb.get 'lastDrawing', 'id') is 0|id
 
 	currentDrawing = personalDb.get 'lastDrawing'
 	wordId = currentDrawing.wordId
@@ -134,7 +136,6 @@ exports.client_addDrawing = (id, steps, time) !->
 exports.client_startDrawing = (cb) !->
 	personalDb = Db.personal App.memberId()
 	lastDrawing = personalDb.get('lastDrawing')||false
-
 
 	if !lastDrawing or personalDb.get('wait')+Config.cooldown() < Date.now()*.001 # first or at least 4 hours ago
 
