@@ -165,9 +165,8 @@ exports.render = !->
 		log "startTime", timer, getTime()
 		steps = drawingR.get('steps')
 		return unless steps
-		steps = steps.split(';')
-		for data in steps then do (data) !->
-			step = Canvas.decode(data)
+		steps = Canvas.decode(steps)
+		for step in steps then do (step) !->
 			now = getTime() - timer
 			if step.time > now
 				Obs.onTime (step.time - now), !->

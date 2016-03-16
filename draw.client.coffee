@@ -113,11 +113,7 @@ exports.render = !->
 			return
 
 		# convert steps to a more efficient format
-		data = ""
-		for step in steps
-			line = Canvas.encode(step)
-			unless data is "" then line = ";" + line # perpend separator
-			data += line # and append
+		data = Canvas.encode steps
 
 		# tell the server we're done
 		log "Sending sketch to the server", myWordO.peek().wordId, time

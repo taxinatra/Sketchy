@@ -134,10 +134,10 @@ renderResult = (drawingId) !->
 						cvs = Canvas.render null # render canvas
 						steps = Db.shared.get('drawings', drawingId, 'steps')
 						Page.back() unless steps
-						steps = steps.split(';')
+
+						steps = Canvas.decode(steps)
 						startTime = Date.now()
-						for data in steps then do (data) !->
-							step = Canvas.decode(data)
+						for step in steps then do (step) !->
 							now = (Date.now() - startTime)
 							if step.time > now
 								Obs.onTime (step.time - now)/6, !->
@@ -254,9 +254,9 @@ renderResult = (drawingId) !->
 		Obs.onTime 500, !->
 			steps = drawingR.get('steps')
 			return unless steps
-			steps = steps.split(';')
-			for data in steps then do (data) !->
-				cvs.addStep Canvas.decode(data)
+			steps = Canvas.decode(steps)
+			for step in steps then do (step) !->
+				cvs.addStep step
 
 			log "Drawn. Canvas to png."
 			backgroundO.set cvs.dom.toDataUrl()
