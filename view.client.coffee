@@ -23,7 +23,7 @@ exports.renderPoints = renderPoints = (points, size, style=null) !->
 		Dom.style
 			background: '#0077CF'
 			borderRadius: '50%'
-			fontSize: (if points < 1000 then (size*.5) else (size*.3)) + 'px'
+			fontSize: (if points < 100 then (size*.5) else if points < 1000 then (size*.4) else (size*.3)) + 'px'
 			textAlign: 'center'
 			width: size+'px'
 			height: size+'px'
