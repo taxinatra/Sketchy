@@ -41,7 +41,7 @@ exports.render = !->
 
 	Obs.observe !->
 		if falseNavigationO.get()
-			Ui.emptyText tr("It seems like you are not suppose to be here.")
+			Ui.emptyText tr("It seems like you are not supposed to be here.")
 
 	unless drawingId # if we have no id, error
 		falseNavigationO.set true

@@ -65,6 +65,7 @@ renderResult = (drawingId) !->
 	myId = App.memberId()
 	drawingR = Db.shared.ref('drawings', drawingId)
 	myTime = drawingR.get('members', myId)
+	Db.personal.get 'words', drawingId # obs
 
 	# --- result screen ---
 
@@ -73,7 +74,7 @@ renderResult = (drawingId) !->
 
 	Obs.observe !->
 		if falseNavigationO.get()
-			Ui.emptyText tr("It seems like you are not suppose to be here.")
+			Ui.emptyText tr("It seems like you are not supposed to be here.")
 
 	Dom.style minHeight: '100%', background: "rgba(255, 255, 255, 1)", height: ''
 
@@ -186,7 +187,7 @@ renderResult = (drawingId) !->
 				Dom.style color: '#777', margin: '12px'
 				Dom.text tr("You will be rewarded the same amount of points as the fastest player.")
 	else # you have guessed
-		unless myTime # if we have no id, error
+		unless myTime # if we have no time, error
 			falseNavigationO.set true
 			return
 		if myTime >= 0
