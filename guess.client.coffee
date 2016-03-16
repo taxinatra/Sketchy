@@ -38,23 +38,22 @@ exports.render = !->
 	timeUsedO = Obs.create 0
 	letterColorO = Obs.create true
 	lockO = Obs.create false
+	steps = false
 
 	Obs.observe !->
 		if falseNavigationO.get()
 			Ui.emptyText tr("It seems like you are not supposed to be here.")
 
-	unless drawingId # if we have no id, error
+	log "drawingId", drawingId
+	unless drawingId? # if we have no id, error
 		falseNavigationO.set true
 		return
+
 
 	# ask the server for the info we need. The server will also note down the member started guessing.
-	drawingR = Db.shared.ref('drawings', drawingId)
-	unless drawingR.get('steps') # if we have no steps, error
-		falseNavigationO.set true
-		return
-
 	now = getTime()
-	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters) !->
+	log "calling getLetters"
+	Server.call 'getLetters', drawingId, (_fields, _solutionHash, _letters, _steps) !->
 		log "gotLetters"
 		if _fields is "time"
 			log "Your time is up"
@@ -66,6 +65,10 @@ exports.render = !->
 			falseNavigationO.set true
 			return
 		fields = _fields
+		unless _steps
+			log "Received no sketch data from the server. That's not good."
+			falseNavigationO.set true
+		steps = _steps
 		solutionHash = _solutionHash
 		length += i for i in fields
 		poolO.set _letters
@@ -163,7 +166,6 @@ exports.render = !->
 		cvs = Canvas.render null # render canvas
 
 		log "startTime", timer, getTime()
-		steps = drawingR.get('steps')
 		return unless steps
 		steps = Canvas.decode(steps)
 		for step in steps then do (step) !->

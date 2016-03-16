@@ -221,7 +221,7 @@ exports.wordList = -> [
 	[217, "cone", "a", 1, false]
 	[218, "drum", "a", 1, false]
 	[219, "circle", "a", 1, true]
-	[220, "spoon", "a", 1, true]
+	[220, "spoon", "a", 1, false]
 	[221, "worm", "a", 1, false]
 	[222, "spider", "a", 1, true]
 	[223, "web", "a", 1, false]

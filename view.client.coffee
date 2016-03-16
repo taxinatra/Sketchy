@@ -124,26 +124,34 @@ renderResult = (drawingId) !->
 					padding: '6px'
 					borderRadius: '50%'
 				onTap: !->
-					Page.nav !-> Dom.div !->
-						Dom.style
-							margin: 0
-							height: '100%'
-							width: '100%'
-							Box: "center midden"
-							background: '#DDD'
-						cvs = Canvas.render null # render canvas
-						steps = Db.shared.get('drawings', drawingId, 'steps')
-						Page.back() unless steps
+					Page.nav !->
+						stepsO = Obs.create false
+						Server.call 'getSteps', drawingId, (steps) !->
+							stepsO.set steps
+							log "got steps, inspect"
+						Dom.div !->
+							Dom.style
+								margin: 0
+								height: '100%'
+								width: '100%'
+								Box: "center midden"
+								background: '#DDD'
 
-						steps = Canvas.decode(steps)
-						startTime = Date.now()
-						for step in steps then do (step) !->
-							now = (Date.now() - startTime)
-							if step.time > now
-								Obs.onTime (step.time - now)/6, !->
+							cvs = Canvas.render null # render canvas
+							steps = stepsO.get()
+							if not steps
+								Ui.emptyText tr("Loading...")
+								return
+
+							steps = Canvas.decode(steps)
+							startTime = Date.now()
+							for step in steps then do (step) !->
+								now = (Date.now() - startTime)
+								if step.time > now
+									Obs.onTime (step.time - now)/6, !->
+										cvs.addStep step
+								else
 									cvs.addStep step
-							else
-								cvs.addStep step
 
 	renderScore = (drawingId) !->
 		points = Db.shared.get('scores', myId, drawingId)
@@ -249,10 +257,16 @@ renderResult = (drawingId) !->
 	# invisible canvas
 	cvs = Canvas.render null, true, false # render canvas in stealth mode
 	# draw the image slightly delayed so the main render doesn't wait for it
+	stepsO = Obs.create false
+	Server.call 'getSteps', drawingId, (steps) !->
+		stepsO.set steps
+		log "got steps"
 	Dom.div !-> # obs scope for onClean
 		Dom.style margin:0
+		steps = false
+
 		Obs.onTime 500, !->
-			steps = drawingR.get('steps')
+			steps = stepsO.get()
 			return unless steps
 			steps = Canvas.decode(steps)
 			for step in steps then do (step) !->
