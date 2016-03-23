@@ -86,7 +86,7 @@ renderResult = (drawingId) !->
 
 	renderTop = (opts) !->
 		Dom.div !->
-			Dom.style minHeight: '72px'
+			Dom.style minHeight: '72px', marginTop: '12px'
 			Dom.h1 opts.header if opts.header
 			Dom.text opts.content if opts.content
 			if opts.content2
