@@ -298,6 +298,7 @@ exports.client_post = (comment) !->
 	f = [Db.shared.get 'drawings', drawingId, 'memberId'] # artist
 	for k,v of Db.shared.get 'drawings', drawingId, 'members'
 		f.push 0|k if v isnt -1
+
 	comment.path = "/#{drawingId}?comments"
-	comment.pushFor = f
+	comment.for = f # pushFor for bubbles but no events.
 	Comments.post comment
