@@ -42,18 +42,6 @@ exports.onUpgrade = !->
 		Db.shared.set "outOfWords", true
 		log "update: still out of words"
 
-	Db.shared.iterate 'drawings', (drawing) !->
-		if !Db.backend.get('sketches', drawing.key(), 'steps')?
-			log "moving", drawing.key()
-			Db.backend.set 'sketches', drawing.key(), 'steps', drawing.get('steps')
-			drawing.set 'steps', ''
-		if Db.backend.get('words', drawing.key(), 'word')?
-			Db.backend.set 'sketches', drawing.key(), 'word', Db.backend.get('words', drawing.key(), 'word')
-		if Db.backend.get('words', drawing.key(), 'prefix')?
-			Db.backend.set 'sketches', drawing.key(), 'prefix', Db.backend.get('words', drawing.key(), 'prefix')
-	Db.backend.remove 'words'
-
-
 	# reset words in personal storage
 	# for memberId in App.memberIds()
 	# 	log "adding words", memberId
@@ -81,12 +69,12 @@ membersToNotify = (id) ->
 	return r
 
 setLastActive = (memberId) !->
-	Db.shared.set 'lastActive', memberId, 0|Date.now()*.001
+	Db.shared.set 'lastActive', memberId, 0|App.time()
 
 considerCriticalMass = (id, artistId = 0) !->
 	# count last active
 	if id then artistId = Db.shared.get 'drawings', id, 'memberId'
-	lastWeek = 0|(Date.now()*.001 - 7*24*3600)
+	lastWeek = 0|(App.time() - 7*24*3600)
 	activeMembers = 0
 	for k, activeTime of Db.shared.get 'lastActive'
 		activeMembers++ if activeTime > lastWeek
@@ -154,7 +142,7 @@ exports.client_startDrawing = (cb) !->
 	personalDb = Db.personal App.memberId()
 	lastDrawing = personalDb.get('lastDrawing')||false
 
-	if !lastDrawing or personalDb.get('wait')+Config.cooldown() < Date.now()*.001 # first or at least 4 hours ago
+	if !lastDrawing or personalDb.get('wait')+Config.cooldown() < App.time() # first or at least 4 hours ago
 
 		wordObj = WordList.getRndWordObjects 1, false # get one word
 		log "start Drawing", App.memberId(), JSON.stringify(wordObj)
@@ -168,7 +156,7 @@ exports.client_startDrawing = (cb) !->
 
 		lastDrawing = wordObj
 		lastDrawing.id = id
-		lastDrawing.time = 0|Date.now()*.001
+		lastDrawing.time = 0|App.time()
 		personalDb.set 'lastDrawing', lastDrawing
 		personalDb.set 'wait', lastDrawing.time
 		considerCriticalMass null, App.memberId()

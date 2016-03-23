@@ -271,7 +271,7 @@ exports.wordList = -> [
 	[267, "pillow", "a", 1, true]
 	[268, "monitor", "a", 1, true]
 	[269, "dinner", "a", 1, true]
-	[270, "bottle", "a", 1, true]
+	[270, "bottle", "a", 1, false]
 	[271, "tomato", "a", 1, true]
 	[272, "butter", "", 1, true]
 	[273, "salami", "a", 1, true]

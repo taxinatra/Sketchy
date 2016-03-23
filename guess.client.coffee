@@ -91,7 +91,7 @@ exports.render = !->
 				timeUsedO.set Math.min((getTime() - timer), GUESS_TIME)
 
 			Obs.onTime GUESS_TIME-(getTime() - timer), !->
-				if Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1
+				if lockO.peek() or (Db.shared.peek('drawings', drawingId, 'members', App.memberId()) isnt -1)
 					log "already submitted."
 					nav()
 					return
@@ -205,9 +205,9 @@ exports.render = !->
 				letterColorO.set true
 
 		# ---------- set the dom --------
-		padding = if Page.height() > 700 then 6 else 3
 
 		Dom.div !->
+			padding = if Page.height() > 700 then 6 else 3
 			Dom.style background: '#666', margin: 0, position: 'relative'
 
 			Obs.observe !->
@@ -269,12 +269,13 @@ exports.render = !->
 								if answerO.peek(i)
 									moveTile answerO, poolO, i, true
 
-		Dom.css
-			'.tile':
-				display: 'inline-block'
-				padding: "#{padding}px"
-				_userSelect: 'none'
+			Dom.css
+				'.tile':
+					display: 'inline-block'
+					padding: "#{padding}px"
+					_userSelect: 'none'
 
+		Dom.css
 			'.tileContent':
 				_boxSizing: 'border-box'
 				width: '32px'
@@ -286,32 +287,9 @@ exports.render = !->
 				color: 'white'
 				textAlign: 'center'
 				fontFamily: "Bree Serif"
-				# _transition: 'background 1s'
-
-			# '.tileContent.empty':
-				# background: '#95B6D4'
-				# boxShadow: 'none'
-
-			# '.tileContent.letter':
-				# border: '1px solid white'
-
-			# ".tile .tileContent.letter":
-				# background: '#BA1A6E'
-				# color: 'white'
-				# boxShadow: "black 1px 1px"
 
 			".pool .tile .tileContent.empty":
 				color: '#95B6D4'
-
-			# ".tile .tileContent.empty":
-				# background: '#BA1A6E'
-				# border: "2px solid white"
-
-			# ".tile .tileContent.letter":
-			# 	border: "2px solid #BA1A6E"
-			# 	background: 'white'
-			# 	color: 'black'
-			# 	boxShadow: "black 1px 1px"
 
 			'.tap .tileContent.letter':
 				background: '#790C46'#'#DADAD9'
