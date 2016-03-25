@@ -244,6 +244,7 @@ renderResult = (drawingId) !->
 		Comments.inline
 			store: ['drawings', drawingId, 'comments']
 			postRpc: 'post' # redirect to server.coffee
+			seenBy: false
 			messages:
 				correct: (c) -> tr("%1 guessed this sketch in %2 seconds!", c.user, c.value)
 				failed: (c) -> tr("%1 failed to guess this sketch", c.user)

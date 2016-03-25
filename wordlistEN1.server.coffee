@@ -249,7 +249,7 @@ exports.wordList = -> [
 	[245, "blocks", "", 1, true]
 	[246, "carrot", "a", 1, true]
 	[247, "turtle", "a", 1, true]
-	[248, "pencil", "a", 1, true]
+	[248, "pencil", "a", 1, false]
 	[249, "dinosaur", "a", 1, true]
 	[250, "head", "a", 1, false]
 	[251, "lamp", "a", 1, false]
