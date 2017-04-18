@@ -1,3 +1,6 @@
 name: Sketchy
 description: A game of sketching and guessing.
 api: 3
+store: 1001
+single: true
+splashtext: In **Sketchy** you guess your friends' sketches and make your own

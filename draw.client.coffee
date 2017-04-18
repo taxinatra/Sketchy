@@ -12,11 +12,10 @@ Ui = require 'ui'
 
 Config = require 'config'
 Timer = require 'timer'
-
 # COLORS = ['darkslategrey', 'white', '#FF6961', '#FDFD96', '#3333ff', '#77DD77', '#CFCFC4', '#FFD1DC', '#B39EB5', '#FFB347', '#836953']
 # use deciHexi only!
-COLORS = ['#DDDDDD', '#45443D', '#FFFFFF', '#0077CF', '#DD2BC3', '#F1560A', '#F1E80A', '#0CE666', '#BA5212', '#F9B6DD']
-BRIGHT_COLORS = ['#EEEDEA', '#45443D', '#FFFFFF', '#5CACE7', '#F0ABE6', '#F1AA88', '#FFFCAF', '#9BFF80', '#E59B6D', '#F9B6DD']
+COLORS = ['#DDDDDD', '#45443D', '#FFFFFF', '#0077CF', '#DD2BC3', '#EA2323', '#F1E80A', '#0CE666', '#BA5212', '#F9B6DD']
+BRIGHT_COLORS = ['#EEEDEA', '#45443D', '#FFFFFF', '#5CACE7', '#F0ABE6', '#F59494', '#FFFCAF', '#9BFF80', '#E59B6D', '#F9B6DD']
 DARK_COLORS = ['#EEEDEA', '#000000', '#D6C9CC', '#003D6B', '#731665', '#960F00', '#785A00', '#00840B', '#513515', '#875572']
 BRUSH_SIZES = [{t:'S',n:5}, {t:'M',n:16}, {t:'L',n:36}, {t:'XL', n:160}]
 
@@ -35,32 +34,17 @@ exports.render = !->
 	falseNavigationO = Obs.create false
 	initializedO = Obs.create false
 	drawingId = false
+	firstSketch = !Db.shared.peek('drawingCount')?
 
 	Obs.observe !->
 		if falseNavigationO.get()
 			Ui.emptyText tr("It seems like you are not supposed to be here.")
-
-	Server.call 'startDrawing', (drawing) !->
-		if drawing is false
-			log "You don't belong here! Wait for your turn."
-			falseNavigationO.set true
-			return
-		if drawing is "out of words"
-			log "We're out of words. Sorry."
-			falseNavigationO.set true
-			return
-
-		drawingId = drawing.id
-		myWordO.set drawing
-
-		startThinkTimer() # start
 
 	Dom.style _userSelect: 'none'
 	LINE_SEGMENT = 5
 	colorO = Obs.create 1
 	tintO = Obs.create 1
 	lineWidthO = Obs.create BRUSH_SIZES[1].n
-
 	steps = []
 
 	thinkTimer = Obs.create false
@@ -68,13 +52,66 @@ exports.render = !->
 	timeUsed = Obs.create 0
 	size = 296 # render size of the canvas
 
+	# if our local stored sketch is still valid, continue with it.
+	# valid means we are still in the time frame and it isn't submitted
+	if Db.local.peek('drawing', 'time') > getTime()-Config.drawTime() and !Db.shared.peek('drawings', Db.local.peek('drawing', 'id'))?
+		# we are continuing a sketch! (update occurred?)
+		drawingId = Db.local.peek 'drawing', 'id'
+		myWordO.set Db.local.peek 'drawing', 'word'
+		log "continue sketch", drawingId, myWordO.peek(), myWordO.peek('word')
+		steps = Db.local.peek 'drawing', 'steps'
+		colorO.set (Db.local.peek 'drawing', 'color')
+		tintO.set (Db.local.peek 'drawing', 'tint')
+		lineWidthO.set (Db.local.peek 'drawing', 'lineWidth')
+		startTime.set (Db.local.peek 'drawing', 'time')
+	else
+		# call for a new word to sketch
+		Server.call 'startDrawing', (drawing) !->
+			if drawing is false
+				log "You don't belong here! Wait for your turn."
+				falseNavigationO.set true
+				return
+			if drawing is "out of words"
+				log "We're out of words. Sorry."
+				falseNavigationO.set true
+				return
+
+			log "got word to sketch:", drawing.id, drawing
+
+			drawingId = drawing.id
+			myWordO.set drawing
+
+			App.trackActivity()
+			startThinkTimer() # start
+
+	Obs.onClean !-> # upgrade safeguard
+		Db.local.set 'drawing',
+			id: drawingId
+			word: myWordO.peek()
+			steps: steps
+			color: colorO.peek()
+			tint: tintO.peek()
+			lineWidth: lineWidthO.peek()
+			time: startTime.peek()
+		log "drawing: onclean", Db.local.peek('drawing')
+
 	Dom.div !-> # needs to be in obs scope for cleaning reasons
 		if startTime.get()
-			Form.setPageSubmit submit, true
-			Obs.onTime DRAW_TIME, submit
+			timeSinceStarted = getTime() - startTime.peek()
+			Form.setPageSubmit !->
+				submit()
+			, true
+			Obs.onTime DRAW_TIME-timeSinceStarted, !-> submit()
 		else if thinkTimer.get()
 			Obs.onTime THINK_TIME, !->
+				log "thinkTimer espired"
 				startTheClock()
+
+		if startTime.get() or thinkTimer.get()
+			return if firstSketch # no need to scare the user with this msg at first sketch
+			Page.setBackConfirm
+				title: tr("Are you sure?")
+				message: tr("You will have to wait for 12 hours to sketch again.")
 
 		Obs.interval 200, !->
 			if st = thinkTimer.peek()
@@ -113,7 +150,7 @@ exports.render = !->
 			return
 
 		# convert steps to a more efficient format
-		data = Canvas.encode steps
+		data = Encoding.encode steps
 
 		# tell the server we're done
 		log "Sending sketch to the server", myWordO.peek().wordId, time
@@ -123,6 +160,7 @@ exports.render = !->
 				wordId: myWordO.peek().wordId
 				steps: steps
 				time: time
+		Db.local.remove 'drawing'
 		Page.up()
 
 	# add a drawing step to our recording
@@ -154,8 +192,6 @@ exports.render = !->
 		pt = toCanvasCoords {x: t.xc, y: t.yc}
 
 		if t.op&1
-			if startTime.peek() is false
-				startTheClock()
 			lastPoint = pt # keep track of last point so we don't draw 1000s of tiny lines
 			addStep 'move', lastPoint
 			drawPhase = 1 # started
@@ -164,13 +200,15 @@ exports.render = !->
 			return true
 
 		else if t.op&2
+			return if startTime.peek() is false
 			if not lastPoint? or distanceBetween(lastPoint, pt) > LINE_SEGMENT #let's not draw lines < minimum
-				# TODO: also limit on delta angel and delta time
+				# TODO: also limit on delta angle and delta time
 				addStep 'draw', pt
 				lastPoint = pt
 				drawPhase = 2 # moving
 
 		else if t.op&4
+			return if startTime.peek() is false
 			if drawPhase is 1 # started but not moved, draw a dot
 				addStep 'dot', pt
 			drawPhase = 0
@@ -237,8 +275,10 @@ exports.render = !->
 		word = myWordO.get()
 		if word
 			Dom.text tr("Sketch %1 '%2'", word.prefix, word.word)
+			Page.setTitle tr("Sketch %1 %2", word.prefix, word.word)
 		else
 			Dom.text "_" # prevent resizing when word has been retrieved
+			Page.setTitle tr("Prepare to make a sketch")
 
 	Obs.observe !->
 		if startTime.get()
@@ -259,6 +299,8 @@ exports.render = !->
 			Dom.style width: size+'px', height: size*CANVAS_RATIO+'px'
 		# render canvas, not hidden, but not responsive
 		cvs = Canvas.render touchHandler, false, false
+		# if we have steps (means we have recovered), draw them
+		cvs.addStep step for step in steps
 
 		Dom.div !->
 			return if startTime.get()
@@ -267,12 +309,27 @@ exports.render = !->
 				top: '30%'
 				width: '100%'
 				fontSize: '90%'
-				pointerEvents: 'none' # don't be tappable
+				# pointerEvents: 'none' # don't be tappable
+				textAlign: 'center'
 			word = myWordO.get()
 			return unless word
-			Ui.emptyText tr("Sketch %1 '%2'", word.prefix, word.word)
-			Ui.emptyText tr("Start sketching before the timer is done.");
-			Ui.emptyText tr("You then have %1 seconds to finish.", 0|DRAW_TIME*.001);
+			Dom.text tr("Sketch %1", word.prefix)#, word.word)
+			Dom.div !->
+				Dom.style
+					fontSize: '28px'
+					textTransform: 'uppercase'
+					fontFamily: "Bree Serif"
+					letterSpacing: '2px'
+				Dom.h2 word.word
+			Ui.button tr("Let's go!"), !->
+				# if startTime.peek() is false
+				startTheClock()
+			Dom.last().style
+				display: 'inline-block'
+				fontSize: '130%'
+				padding: '12px'
+				margin: '8px'
+			Ui.emptyText tr("You have %1 seconds to sketch.", 0|DRAW_TIME*.001)
 
 	# toolbar
 	Dom.div !-> # shelf
