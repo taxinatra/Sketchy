@@ -1,4 +1,5 @@
 #!/bin/sh
+./deploy 10473325rwhyqnzc
 
 # see if we can use zip
 if ! hash zip 2>/dev/null; then
